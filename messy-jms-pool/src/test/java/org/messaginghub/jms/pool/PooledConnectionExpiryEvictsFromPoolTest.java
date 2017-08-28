@@ -78,7 +78,7 @@ public class PooledConnectionExpiryEvictsFromPoolTest extends JmsPoolTestSupport
         connection.close();
 
         // let it idle timeout
-        TimeUnit.MILLISECONDS.sleep(500);
+        TimeUnit.MILLISECONDS.sleep(20);
 
         PooledConnection connection2 = (PooledConnection) pooledFactory.createConnection();
         Connection amq2 = connection2.getConnection();
@@ -92,7 +92,7 @@ public class PooledConnectionExpiryEvictsFromPoolTest extends JmsPoolTestSupport
         Connection amq1 = ((PooledConnection) connection).getConnection();
 
         // let it expire while in use
-        TimeUnit.MILLISECONDS.sleep(500);
+        TimeUnit.MILLISECONDS.sleep(20);
         connection.close();
 
         Connection connection2 = pooledFactory.createConnection();
@@ -107,7 +107,7 @@ public class PooledConnectionExpiryEvictsFromPoolTest extends JmsPoolTestSupport
         Session s = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
 
         // let connection to get idle
-        TimeUnit.MILLISECONDS.sleep(500);
+        TimeUnit.MILLISECONDS.sleep(20);
 
         // get a connection from pool again, it should be the same underlying connection
         // as before and should not be idled out since an open session exists.
@@ -128,7 +128,7 @@ public class PooledConnectionExpiryEvictsFromPoolTest extends JmsPoolTestSupport
         connection2.close();
 
         // let connection to get idle
-        TimeUnit.MILLISECONDS.sleep(500);
+        TimeUnit.MILLISECONDS.sleep(20);
 
         // get a connection from pool again, it should be a new Connection instance as the
         // old one should have been inactive and idled out.
