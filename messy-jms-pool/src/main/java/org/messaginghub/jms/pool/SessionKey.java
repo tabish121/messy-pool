@@ -29,28 +29,21 @@ public class SessionKey {
     public SessionKey(boolean transacted, int ackMode) {
         this.transacted = transacted;
         this.ackMode = ackMode;
-        hash = ackMode;
+        this.hash = ackMode;
+
         if (transacted) {
             hash = 31 * hash + 1;
         }
     }
 
+    @Override
     public int hashCode() {
-        return hash;
-    }
-
-    public boolean equals(Object that) {
-        if (this == that) {
-            return true;
-        }
-        if (that instanceof SessionKey) {
-            return equals((SessionKey) that);
-        }
-        return false;
-    }
-
-    public boolean equals(SessionKey that) {
-        return this.transacted == that.transacted && this.ackMode == that.ackMode;
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + ackMode;
+        result = prime * result + hash;
+        result = prime * result + (transacted ? 1231 : 1237);
+        return result;
     }
 
     public boolean isTransacted() {
@@ -59,5 +52,32 @@ public class SessionKey {
 
     public int getAckMode() {
         return ackMode;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+
+        SessionKey other = (SessionKey) obj;
+        if (hash != other.hash) {
+            return false;
+        }
+
+        if (ackMode != other.ackMode) {
+            return false;
+        }
+        if (transacted != other.transacted) {
+            return false;
+        }
+
+        return true;
     }
 }

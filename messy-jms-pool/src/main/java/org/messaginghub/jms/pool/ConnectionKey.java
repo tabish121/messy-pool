@@ -46,26 +46,6 @@ public class ConnectionKey {
         }
     }
 
-    @Override
-    public int hashCode() {
-        return hash;
-    }
-
-    @Override
-    public boolean equals(Object that) {
-        if (this == that) {
-            return true;
-        }
-        if (that instanceof ConnectionKey) {
-            return equals((ConnectionKey) that);
-        }
-        return false;
-    }
-
-    public boolean equals(ConnectionKey that) {
-        return isEqual(this.userName, that.userName) && isEqual(this.password, that.password);
-    }
-
     public String getPassword() {
         return password;
     }
@@ -74,10 +54,49 @@ public class ConnectionKey {
         return userName;
     }
 
-    public static boolean isEqual(Object o1, Object o2) {
-        if (o1 == o2) {
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + hash;
+        result = prime * result + ((password == null) ? 0 : password.hashCode());
+        result = prime * result + ((userName == null) ? 0 : userName.hashCode());
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
             return true;
         }
-        return o1 != null && o2 != null && o1.equals(o2);
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+
+        ConnectionKey other = (ConnectionKey) obj;
+        if (hash != other.hash) {
+            return false;
+        }
+
+        if (password == null) {
+            if (other.password != null) {
+                return false;
+            }
+        } else if (!password.equals(other.password)) {
+            return false;
+        }
+
+        if (userName == null) {
+            if (other.userName != null) {
+                return false;
+            }
+        } else if (!userName.equals(other.userName)) {
+            return false;
+        }
+
+        return true;
     }
 }
