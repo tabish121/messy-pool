@@ -35,14 +35,14 @@ public class PooledMessageConsumer implements MessageConsumer {
      * @param session  the pooled session
      * @param delegate the created consumer to wrap
      */
-    public PooledMessageConsumer(PooledSession session, MessageConsumer delegate) {
+    PooledMessageConsumer(PooledSession session, MessageConsumer delegate) {
         this.session = session;
         this.delegate = delegate;
     }
 
     @Override
     public void close() throws JMSException {
-        // ensure session removes consumer as its closed now
+        // ensure session removes consumer from it's list of managed resources.
         session.onConsumerClose(delegate);
         delegate.close();
     }
@@ -80,5 +80,9 @@ public class PooledMessageConsumer implements MessageConsumer {
     @Override
     public String toString() {
         return "PooledMessageConsumer { " + delegate + " }";
+    }
+
+    protected MessageConsumer getDelegate() {
+        return delegate;
     }
 }

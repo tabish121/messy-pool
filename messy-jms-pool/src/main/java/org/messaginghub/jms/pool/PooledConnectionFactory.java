@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
+import javax.jms.JMSContext;
 import javax.jms.JMSException;
 import javax.jms.QueueConnection;
 import javax.jms.QueueConnectionFactory;
@@ -281,6 +282,34 @@ public class PooledConnectionFactory implements ConnectionFactory, QueueConnecti
         }
     }
 
+    //----- JMS Context Creation ---------------------------------------------//
+
+    @Override
+    public JMSContext createContext() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public JMSContext createContext(int sessionMode) {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public JMSContext createContext(String userName, String password) {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public JMSContext createContext(String userName, String password, int sessionMode) {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    //----- Setup and Close --------------------------------------------------//
+
     public void start() {
         LOG.debug("Staring the PooledConnectionFactory: create on start = {}", isCreateConnectionOnStartup());
         stopped.set(false);
@@ -321,6 +350,8 @@ public class PooledConnectionFactory implements ConnectionFactory, QueueConnecti
 
         getConnectionsPool().clear();
     }
+
+    //----- Connection Pool Configuration ------------------------------------//
 
     /**
      * Returns the currently configured maximum number of sessions a pooled Connection will
@@ -579,6 +610,8 @@ public class PooledConnectionFactory implements ConnectionFactory, QueueConnecti
     public void setReconnectOnException(boolean reconnectOnException) {
         this.reconnectOnException = reconnectOnException;
     }
+
+    //----- JNDI Operations --------------------------------------------------//
 
     /**
      * Called by any superclass that implements a JNDIReferencable or similar that needs to collect

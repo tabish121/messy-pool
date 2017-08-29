@@ -16,6 +16,7 @@
  */
 package org.messaginghub.jms.pool;
 
+import javax.jms.CompletionListener;
 import javax.jms.Destination;
 import javax.jms.InvalidDestinationException;
 import javax.jms.JMSException;
@@ -35,6 +36,7 @@ public class PooledProducer implements MessageProducer {
     private boolean disableMessageTimestamp;
     private int priority;
     private long timeToLive;
+    private long deliveryDelay;
     private boolean anonymous = true;
 
     public PooledProducer(MessageProducer messageProducer, Destination destination) throws JMSException {
@@ -47,6 +49,9 @@ public class PooledProducer implements MessageProducer {
         this.disableMessageTimestamp = messageProducer.getDisableMessageTimestamp();
         this.priority = messageProducer.getPriority();
         this.timeToLive = messageProducer.getTimeToLive();
+
+        // TODO - Account for JMS 1.1 MessageProducer instances.
+        this.deliveryDelay = messageProducer.getDeliveryDelay();
     }
 
     @Override
@@ -73,7 +78,6 @@ public class PooledProducer implements MessageProducer {
 
     @Override
     public void send(Destination destination, Message message, int deliveryMode, int priority, long timeToLive) throws JMSException {
-
         if (destination == null) {
             if (messageProducer.getDestination() == null) {
                 throw new UnsupportedOperationException("A destination must be specified.");
@@ -90,11 +94,58 @@ public class PooledProducer implements MessageProducer {
                 throw new UnsupportedOperationException("This producer can only send messages to: " + this.destination);
             }
 
+            // TODO Set and un-set delivery delay options but account for JMS 1.1 client
+
             // Producer will do it's own Destination validation so always use the destination
             // based send method otherwise we might violate a JMS rule.
             messageProducer.send(destination, message, deliveryMode, priority, timeToLive);
         }
     }
+
+    //----- JMS 2.0 Send methods ---------------------------------------------//
+
+    @Override
+    public void send(Message message, CompletionListener completionListener) throws JMSException {
+        send(destination, message, getDeliveryMode(), getPriority(), getTimeToLive(), completionListener);
+    }
+
+    @Override
+    public void send(Destination destination, Message message, CompletionListener completionListener) throws JMSException {
+        send(destination, message, getDeliveryMode(), getPriority(), getTimeToLive(), completionListener);
+    }
+
+    @Override
+    public void send(Message message, int deliveryMode, int priority, long timeToLive, CompletionListener completionListener) throws JMSException {
+        send(destination, message, deliveryMode, priority, timeToLive, completionListener);
+    }
+
+    @Override
+    public void send(Destination destination, Message message, int deliveryMode, int priority, long timeToLive, CompletionListener completionListener) throws JMSException {
+        if (destination == null) {
+            if (messageProducer.getDestination() == null) {
+                throw new UnsupportedOperationException("A destination must be specified.");
+            }
+            throw new InvalidDestinationException("Don't understand null destinations");
+        }
+
+        MessageProducer messageProducer = getMessageProducer();
+
+        // just in case let only one thread send at once
+        synchronized (messageProducer) {
+
+            if (anonymous && this.destination != null && !this.destination.equals(destination)) {
+                throw new UnsupportedOperationException("This producer can only send messages to: " + this.destination);
+            }
+
+            // TODO Set and un-set delivery delay options but account for JMS 1.1 client
+
+            // Producer will do it's own Destination validation so always use the destination
+            // based send method otherwise we might violate a JMS rule.
+            messageProducer.send(destination, message, deliveryMode, priority, timeToLive);
+        }
+    }
+
+    //----- MessageProducer configuration ------------------------------------//
 
     @Override
     public Destination getDestination() {
@@ -149,6 +200,16 @@ public class PooledProducer implements MessageProducer {
     @Override
     public void setTimeToLive(long timeToLive) {
         this.timeToLive = timeToLive;
+    }
+
+    @Override
+    public long getDeliveryDelay() throws JMSException {
+        return deliveryDelay;
+    }
+
+    @Override
+    public void setDeliveryDelay(long deliveryDelay) throws JMSException {
+        this.deliveryDelay = deliveryDelay;
     }
 
     // Implementation methods

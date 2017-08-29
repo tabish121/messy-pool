@@ -36,6 +36,7 @@ import javax.jms.TopicPublisher;
 import javax.jms.TopicSession;
 import javax.jms.XAConnection;
 import javax.jms.XAConnectionFactory;
+import javax.jms.XAJMSContext;
 import javax.naming.spi.ObjectFactory;
 import javax.transaction.HeuristicMixedException;
 import javax.transaction.HeuristicRollbackException;
@@ -388,6 +389,16 @@ public class XAConnectionPoolTest extends JmsPoolTestSupport {
         @Override
         public XAConnection createXAConnection(String userName, String password) throws JMSException {
             return connectionFactory.createXAConnection(userName, password);
+        }
+
+        @Override
+        public XAJMSContext createXAContext() {
+            return null;
+        }
+
+        @Override
+        public XAJMSContext createXAContext(String userName, String password) {
+            return null;
         }
     }
 }

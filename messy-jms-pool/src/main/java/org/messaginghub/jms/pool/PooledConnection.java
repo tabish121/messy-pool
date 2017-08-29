@@ -148,6 +148,18 @@ public class PooledConnection implements TopicConnection, QueueConnection, Poole
     }
 
     @Override
+    public ConnectionConsumer createSharedDurableConnectionConsumer(Topic topic, String subscriptionName, String selector, ServerSessionPool sessionPool, int maxMessages) throws JMSException {
+        // TODO - Handle JMS client that only supports 1.1
+        return getConnection().createSharedDurableConnectionConsumer(topic, subscriptionName, selector, sessionPool, maxMessages);
+    }
+
+    @Override
+    public ConnectionConsumer createSharedConnectionConsumer(Topic topic, String subscriptionName, String selector, ServerSessionPool sessionPool, int maxMessages) throws JMSException {
+        // TODO - Handle JMS client that only supports 1.1
+        return getConnection().createSharedConnectionConsumer(topic, subscriptionName, selector, sessionPool, maxMessages);
+    }
+
+    @Override
     public ConnectionConsumer createConnectionConsumer(Queue queue, String selector, ServerSessionPool serverSessionPool, int maxMessages) throws JMSException {
         return getConnection().createConnectionConsumer(queue, selector, serverSessionPool, maxMessages);
     }
@@ -162,6 +174,16 @@ public class PooledConnection implements TopicConnection, QueueConnection, Poole
     @Override
     public TopicSession createTopicSession(boolean transacted, int ackMode) throws JMSException {
         return (TopicSession) createSession(transacted, ackMode);
+    }
+
+    @Override
+    public Session createSession() throws JMSException {
+        return createSession(false, Session.AUTO_ACKNOWLEDGE);
+    }
+
+    @Override
+    public Session createSession(int sessionMode) throws JMSException {
+        return createSession(sessionMode == Session.SESSION_TRANSACTED, sessionMode);
     }
 
     @Override

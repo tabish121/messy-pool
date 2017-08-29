@@ -361,6 +361,45 @@ public class PooledSession implements Session, TopicSession, QueueSession, XASes
         return addQueueReceiver(((QueueSession) getInternalSession()).createReceiver(queue, selector));
     }
 
+    // TODO - Add checks for JMS 1.1 Session and throw here instead of calling into not found
+
+    @Override
+    public MessageConsumer createSharedConsumer(Topic topic, String sharedSubscriptionName) throws JMSException {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public MessageConsumer createSharedConsumer(Topic topic, String sharedSubscriptionName, String messageSelector) throws JMSException {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public MessageConsumer createDurableConsumer(Topic topic, String name) throws JMSException {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public MessageConsumer createDurableConsumer(Topic topic, String name, String messageSelector, boolean noLocal)
+            throws JMSException {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public MessageConsumer createSharedDurableConsumer(Topic topic, String name) throws JMSException {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public MessageConsumer createSharedDurableConsumer(Topic topic, String name, String messageSelector) throws JMSException {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
     // Producer related methods
     // -------------------------------------------------------------------------
     @Override
@@ -432,25 +471,22 @@ public class PooledSession implements Session, TopicSession, QueueSession, XASes
 
     private QueueBrowser addQueueBrowser(QueueBrowser browser) {
         browsers.add(browser);
-        return browser;
+        return new PooledQueueBrowser(this, browser);
     }
 
     private MessageConsumer addConsumer(MessageConsumer consumer) {
         consumers.add(consumer);
-        // must wrap in PooledMessageConsumer to ensure the onConsumerClose
-        // method is invoked when the returned consumer is closed, to avoid memory
-        // leak in this session class in case many consumers is created
         return new PooledMessageConsumer(this, consumer);
     }
 
     private TopicSubscriber addTopicSubscriber(TopicSubscriber subscriber) {
         consumers.add(subscriber);
-        return subscriber;
+        return new PooledTopicSubscriber(this, subscriber);
     }
 
     private QueueReceiver addQueueReceiver(QueueReceiver receiver) {
         consumers.add(receiver);
-        return receiver;
+        return new PooledQueueReceiver(this, receiver);
     }
 
     public void setIsXa(boolean isXa) {
@@ -466,14 +502,26 @@ public class PooledSession implements Session, TopicSession, QueueSession, XASes
      * Callback invoked when the consumer is closed.
      * <p>
      * This is used to keep track of an explicit closed consumer created by this
-     * session, by which we know do not need to keep track of the consumer, as
-     * its already closed.
+     * session so that the internal tracking data structures can be cleaned up.
      *
      * @param consumer
-     *            the consumer which is being closed
+     * 		the consumer which is being closed.
      */
     protected void onConsumerClose(MessageConsumer consumer) {
         consumers.remove(consumer);
+    }
+
+    /**
+     * Callback invoked when the consumer is closed.
+     * <p>
+     * This is used to keep track of an explicit closed consumer created by this
+     * session so that the internal tracking data structures can be cleaned up.
+     *
+     * @param browser
+     * 		the consumer which is being closed.
+     */
+    public void onQueueBrowserClose(QueueBrowser browser) {
+        browsers.remove(browser);
     }
 
     private SessionHolder safeGetSessionHolder() {
