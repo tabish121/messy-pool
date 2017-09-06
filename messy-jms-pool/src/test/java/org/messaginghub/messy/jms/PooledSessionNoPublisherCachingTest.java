@@ -33,7 +33,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.messaginghub.messy.jms.PooledConnection;
 import org.messaginghub.messy.jms.PooledConnectionFactory;
-import org.messaginghub.messy.jms.PooledProducer;
+import org.messaginghub.messy.jms.PooledMessageProducer;
 import org.messaginghub.messy.jms.PooledQueueSender;
 import org.messaginghub.messy.jms.PooledTopicPublisher;
 
@@ -85,8 +85,8 @@ public class PooledSessionNoPublisherCachingTest extends JmsPoolTestSupport {
         Queue queue1 = session.createTemporaryQueue();
         Queue queue2 = session.createTemporaryQueue();
 
-        PooledProducer producer1 = (PooledProducer) session.createProducer(queue1);
-        PooledProducer producer2 = (PooledProducer) session.createProducer(queue2);
+        PooledMessageProducer producer1 = (PooledMessageProducer) session.createProducer(queue1);
+        PooledMessageProducer producer2 = (PooledMessageProducer) session.createProducer(queue2);
 
         assertNotSame(producer1.getMessageProducer(), producer2.getMessageProducer());
     }
@@ -99,7 +99,7 @@ public class PooledSessionNoPublisherCachingTest extends JmsPoolTestSupport {
         Queue queue1 = session.createTemporaryQueue();
         Queue queue2 = session.createTemporaryQueue();
 
-        PooledProducer producer = (PooledProducer) session.createProducer(queue1);
+        PooledMessageProducer producer = (PooledMessageProducer) session.createProducer(queue1);
 
         try {
             producer.send(queue2, session.createTextMessage());

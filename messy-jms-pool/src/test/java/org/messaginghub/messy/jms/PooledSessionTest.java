@@ -38,7 +38,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.messaginghub.messy.jms.PooledConnection;
 import org.messaginghub.messy.jms.PooledConnectionFactory;
-import org.messaginghub.messy.jms.PooledProducer;
+import org.messaginghub.messy.jms.PooledMessageProducer;
 import org.messaginghub.messy.jms.PooledQueueSender;
 import org.messaginghub.messy.jms.PooledTopicPublisher;
 
@@ -105,8 +105,8 @@ public class PooledSessionTest extends JmsPoolTestSupport {
         Queue queue1 = session.createTemporaryQueue();
         Queue queue2 = session.createTemporaryQueue();
 
-        PooledProducer producer1 = (PooledProducer) session.createProducer(queue1);
-        PooledProducer producer2 = (PooledProducer) session.createProducer(queue2);
+        PooledMessageProducer producer1 = (PooledMessageProducer) session.createProducer(queue1);
+        PooledMessageProducer producer2 = (PooledMessageProducer) session.createProducer(queue2);
 
         assertSame(producer1.getMessageProducer(), producer2.getMessageProducer());
 
@@ -121,7 +121,7 @@ public class PooledSessionTest extends JmsPoolTestSupport {
         Queue queue1 = session.createTemporaryQueue();
         Queue queue2 = session.createTemporaryQueue();
 
-        PooledProducer producer = (PooledProducer) session.createProducer(queue1);
+        PooledMessageProducer producer = (PooledMessageProducer) session.createProducer(queue1);
 
         try {
             producer.send(queue2, session.createTextMessage());
@@ -176,7 +176,7 @@ public class PooledSessionTest extends JmsPoolTestSupport {
 
         Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
         Destination destination = session.createTopic("test-topic");
-        PooledProducer producer = (PooledProducer) session.createProducer(destination);
+        PooledMessageProducer producer = (PooledMessageProducer) session.createProducer(destination);
         MessageProducer original = producer.getMessageProducer();
         assertNotNull(original);
         session.close();
@@ -185,7 +185,7 @@ public class PooledSessionTest extends JmsPoolTestSupport {
 
         for (int i = 0; i < 20; ++i) {
             session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
-            producer = (PooledProducer) session.createProducer(destination);
+            producer = (PooledMessageProducer) session.createProducer(destination);
             assertSame(original, producer.getMessageProducer());
             session.close();
         }

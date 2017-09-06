@@ -16,6 +16,8 @@
  */
 package org.messaginghub.messy.jms;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import javax.jms.CompletionListener;
 import javax.jms.Destination;
 import javax.jms.InvalidDestinationException;
@@ -26,11 +28,14 @@ import javax.jms.MessageProducer;
 /**
  * A pooled {@link MessageProducer}
  */
-public class PooledProducer implements MessageProducer {
+public class PooledMessageProducer implements MessageProducer {
 
     private final ConnectionPool connection;
     private final MessageProducer messageProducer;
     private final Destination destination;
+
+    private final boolean anonymous;
+    private final AtomicBoolean closed = new AtomicBoolean(false);
 
     private int deliveryMode;
     private boolean disableMessageID;
@@ -38,9 +43,8 @@ public class PooledProducer implements MessageProducer {
     private int priority;
     private long timeToLive;
     private long deliveryDelay;
-    private boolean anonymous = true;
 
-    public PooledProducer(ConnectionPool connection, MessageProducer messageProducer, Destination destination) throws JMSException {
+    public PooledMessageProducer(ConnectionPool connection, MessageProducer messageProducer, Destination destination) throws JMSException {
         this.messageProducer = messageProducer;
         this.destination = destination;
         this.connection = connection;
@@ -59,7 +63,7 @@ public class PooledProducer implements MessageProducer {
 
     @Override
     public void close() throws JMSException {
-        if (!anonymous) {
+        if (!anonymous && closed.compareAndSet(false, true)) {
             this.messageProducer.close();
         }
     }
@@ -81,6 +85,8 @@ public class PooledProducer implements MessageProducer {
 
     @Override
     public void send(Destination destination, Message message, int deliveryMode, int priority, long timeToLive) throws JMSException {
+        checkClosed();
+
         if (destination == null) {
             if (messageProducer.getDestination() == null) {
                 throw new UnsupportedOperationException("A destination must be specified.");
@@ -96,8 +102,6 @@ public class PooledProducer implements MessageProducer {
             if (anonymous && this.destination != null && !this.destination.equals(destination)) {
                 throw new UnsupportedOperationException("This producer can only send messages to: " + this.destination);
             }
-
-            // TODO Set and un-set delivery delay options but account for JMS 1.1 client
 
             // Producer will do it's own Destination validation so always use the destination
             // based send method otherwise we might violate a JMS rule.
@@ -124,6 +128,8 @@ public class PooledProducer implements MessageProducer {
 
     @Override
     public void send(Destination destination, Message message, int deliveryMode, int priority, long timeToLive, CompletionListener completionListener) throws JMSException {
+        checkClosed();
+
         if (destination == null) {
             if (messageProducer.getDestination() == null) {
                 throw new UnsupportedOperationException("A destination must be specified.");
@@ -140,8 +146,6 @@ public class PooledProducer implements MessageProducer {
                 throw new UnsupportedOperationException("This producer can only send messages to: " + this.destination);
             }
 
-            // TODO Set and un-set delivery delay options but account for JMS 1.1 client
-
             // Producer will do it's own Destination validation so always use the destination
             // based send method otherwise we might violate a JMS rule.
             messageProducer.send(destination, message, deliveryMode, priority, timeToLive);
@@ -151,68 +155,88 @@ public class PooledProducer implements MessageProducer {
     //----- MessageProducer configuration ------------------------------------//
 
     @Override
-    public Destination getDestination() {
+    public Destination getDestination() throws JMSException {
+        checkClosed();
         return destination;
     }
 
     @Override
-    public int getDeliveryMode() {
+    public int getDeliveryMode() throws JMSException {
+        checkClosed();
         return deliveryMode;
     }
 
     @Override
-    public void setDeliveryMode(int deliveryMode) {
+    public void setDeliveryMode(int deliveryMode) throws JMSException {
+        checkClosed();
         this.deliveryMode = deliveryMode;
     }
 
     @Override
-    public boolean getDisableMessageID() {
+    public boolean getDisableMessageID() throws JMSException {
+        checkClosed();
         return disableMessageID;
     }
 
     @Override
-    public void setDisableMessageID(boolean disableMessageID) {
+    public void setDisableMessageID(boolean disableMessageID) throws JMSException {
+        checkClosed();
         this.disableMessageID = disableMessageID;
     }
 
     @Override
-    public boolean getDisableMessageTimestamp() {
+    public boolean getDisableMessageTimestamp() throws JMSException {
+        checkClosed();
         return disableMessageTimestamp;
     }
 
     @Override
-    public void setDisableMessageTimestamp(boolean disableMessageTimestamp) {
+    public void setDisableMessageTimestamp(boolean disableMessageTimestamp) throws JMSException {
+        checkClosed();
         this.disableMessageTimestamp = disableMessageTimestamp;
     }
 
     @Override
-    public int getPriority() {
+    public int getPriority() throws JMSException {
+        checkClosed();
         return priority;
     }
 
     @Override
-    public void setPriority(int priority) {
+    public void setPriority(int priority) throws JMSException {
+        checkClosed();
         this.priority = priority;
     }
 
     @Override
-    public long getTimeToLive() {
+    public long getTimeToLive() throws JMSException {
+        checkClosed();
         return timeToLive;
     }
 
     @Override
-    public void setTimeToLive(long timeToLive) {
+    public void setTimeToLive(long timeToLive) throws JMSException {
+        checkClosed();
         this.timeToLive = timeToLive;
     }
 
     @Override
     public long getDeliveryDelay() throws JMSException {
+        checkClosed();
+        connection.checkClientJMSVersionSupport(2, 0);
         return deliveryDelay;
     }
 
     @Override
     public void setDeliveryDelay(long deliveryDelay) throws JMSException {
-        this.deliveryDelay = deliveryDelay;
+        checkClosed();
+        connection.checkClientJMSVersionSupport(2, 0);
+        if (anonymous) {
+            this.deliveryDelay = deliveryDelay;
+            this.messageProducer.setDeliveryDelay(deliveryDelay);
+        } else {
+            throw new JMSException("Shared Pooled Producers cannot use delivery delay");
+        }
     }
 
     // Implementation methods
@@ -228,5 +252,11 @@ public class PooledProducer implements MessageProducer {
     @Override
     public String toString() {
         return "PooledProducer { " + messageProducer + " }";
+    }
+
+    private void checkClosed() throws JMSException {
+        if (closed.get()) {
+            throw new JMSException("This message producer has been closed.");
+        }
     }
 }

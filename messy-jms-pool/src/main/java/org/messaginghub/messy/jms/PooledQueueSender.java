@@ -25,7 +25,7 @@ import javax.jms.QueueSender;
 /**
  * {@link QueueSender} instance that is created and managed by the PooledConnection.
  */
-public class PooledQueueSender extends PooledProducer implements QueueSender {
+public class PooledQueueSender extends PooledMessageProducer implements QueueSender {
 
     public PooledQueueSender(ConnectionPool connection, QueueSender messageProducer, Destination destination) throws JMSException {
         super(connection, messageProducer, destination);

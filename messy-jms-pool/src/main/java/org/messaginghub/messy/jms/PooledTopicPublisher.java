@@ -25,7 +25,7 @@ import javax.jms.TopicPublisher;
 /**
  * A {@link TopicPublisher} instance that is created and managed by a PooledConnection.
  */
-public class PooledTopicPublisher extends PooledProducer implements TopicPublisher {
+public class PooledTopicPublisher extends PooledMessageProducer implements TopicPublisher {
 
     public PooledTopicPublisher(ConnectionPool connection, TopicPublisher messageProducer, Destination destination) throws JMSException {
         super(connection, messageProducer, destination);

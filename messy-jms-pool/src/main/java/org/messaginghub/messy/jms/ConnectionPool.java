@@ -416,6 +416,10 @@ public class ConnectionPool implements ExceptionListener {
         return "ConnectionPool[" + connection + "]";
     }
 
+    void checkClientJMSVersionSupport(int requiredMajor, int requiredMinor) throws JMSException {
+        checkClientJMSVersionSupport(requiredMajor, requiredMinor, false);
+    }
+
     void checkClientJMSVersionSupport(int requiredMajor, int requiredMinor, boolean runtimeEx) throws JMSException {
         if (jmsMajorVersion >= requiredMajor && jmsMinorVersion >= requiredMinor) {
             return;

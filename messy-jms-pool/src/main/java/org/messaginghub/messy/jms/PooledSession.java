@@ -404,7 +404,7 @@ public class PooledSession implements Session, TopicSession, QueueSession, XASes
     // -------------------------------------------------------------------------
     @Override
     public MessageProducer createProducer(Destination destination) throws JMSException {
-        return new PooledProducer(safeGetSessionHolder().getConnection(), getMessageProducer(destination), destination);
+        return new PooledMessageProducer(safeGetSessionHolder().getConnection(), getMessageProducer(destination), destination);
     }
 
     @Override
