@@ -27,8 +27,8 @@ import javax.jms.QueueSender;
  */
 public class PooledQueueSender extends PooledProducer implements QueueSender {
 
-    public PooledQueueSender(QueueSender messageProducer, Destination destination) throws JMSException {
-        super(messageProducer, destination);
+    public PooledQueueSender(ConnectionPool connection, QueueSender messageProducer, Destination destination) throws JMSException {
+        super(connection, messageProducer, destination);
     }
 
     @Override

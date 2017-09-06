@@ -28,6 +28,7 @@ import javax.jms.MessageProducer;
  */
 public class PooledProducer implements MessageProducer {
 
+    private final ConnectionPool connection;
     private final MessageProducer messageProducer;
     private final Destination destination;
 
@@ -39,9 +40,10 @@ public class PooledProducer implements MessageProducer {
     private long deliveryDelay;
     private boolean anonymous = true;
 
-    public PooledProducer(MessageProducer messageProducer, Destination destination) throws JMSException {
+    public PooledProducer(ConnectionPool connection, MessageProducer messageProducer, Destination destination) throws JMSException {
         this.messageProducer = messageProducer;
         this.destination = destination;
+        this.connection = connection;
         this.anonymous = messageProducer.getDestination() == null;
 
         this.deliveryMode = messageProducer.getDeliveryMode();
@@ -50,8 +52,9 @@ public class PooledProducer implements MessageProducer {
         this.priority = messageProducer.getPriority();
         this.timeToLive = messageProducer.getTimeToLive();
 
-        // TODO - Account for JMS 1.1 MessageProducer instances.
-        this.deliveryDelay = messageProducer.getDeliveryDelay();
+        if (connection.isJMSVersionSupported(2, 0)) {
+            this.deliveryDelay = messageProducer.getDeliveryDelay();
+        }
     }
 
     @Override

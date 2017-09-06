@@ -58,6 +58,7 @@
     <mockito-version>2.9.0</mockito-version>
     <junit-version>4.12</junit-version>
     <geronimo.jms.2.spec.version>1.0-alpha-2</geronimo.jms.2.spec.version>
+    <geronimo.jms.1.1.spec.version>1.1.1</geronimo.jms.1.1.spec.version>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -89,6 +90,7 @@
 
   <modules>
     <module>messy-jms-pool</module>
+    <module>messy-jms-interop-tests</module>
   </modules>
 
   <distributionManagement>
@@ -127,12 +129,60 @@
         <version>${geronimo.jms.2.spec.version}</version>
       </dependency>
       <dependency>
+        <groupId>org.apache.geronimo.specs</groupId>
+        <artifactId>geronimo-jms_1.1_spec</artifactId>
+        <version>${geronimo.jms.1.1.spec.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
         <groupId>org.apache.geronimo.components</groupId>
         <artifactId>geronimo-transaction</artifactId>
         <version>3.1.4</version>
       </dependency>
 
-      <!-- Testing dependencies -->
+      <!-- Test Dependencies -->
+      <dependency>
+        <groupId>org.apache.activemq</groupId>
+        <artifactId>activemq-broker</artifactId>
+        <version>${activemq-version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.activemq</groupId>
+        <artifactId>activemq-client</artifactId>
+        <version>${activemq-version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.activemq</groupId>
+        <artifactId>activemq-kahadb-store</artifactId>
+        <version>${activemq-version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.activemq</groupId>
+        <artifactId>activemq-amqp</artifactId>
+        <version>${activemq-version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.activemq</groupId>
+        <artifactId>activemq-jaas</artifactId>
+        <version>${activemq-version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.activemq.tooling</groupId>
+        <artifactId>activemq-junit</artifactId>
+        <version>${activemq-version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.qpid</groupId>
+        <artifactId>qpid-jms-client</artifactId>
+        <version>${qpid-jms-version}</version>
+        <scope>test</scope>
+      </dependency>
       <dependency>
         <groupId>junit</groupId>
         <artifactId>junit</artifactId>

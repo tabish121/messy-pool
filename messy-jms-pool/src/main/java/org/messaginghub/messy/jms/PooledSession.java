@@ -404,17 +404,17 @@ public class PooledSession implements Session, TopicSession, QueueSession, XASes
     // -------------------------------------------------------------------------
     @Override
     public MessageProducer createProducer(Destination destination) throws JMSException {
-        return new PooledProducer(getMessageProducer(destination), destination);
+        return new PooledProducer(safeGetSessionHolder().getConnection(), getMessageProducer(destination), destination);
     }
 
     @Override
     public QueueSender createSender(Queue queue) throws JMSException {
-        return new PooledQueueSender(getQueueSender(queue), queue);
+        return new PooledQueueSender(safeGetSessionHolder().getConnection(), getQueueSender(queue), queue);
     }
 
     @Override
     public TopicPublisher createPublisher(Topic topic) throws JMSException {
-        return new PooledTopicPublisher(getTopicPublisher(topic), topic);
+        return new PooledTopicPublisher(safeGetSessionHolder().getConnection(), getTopicPublisher(topic), topic);
     }
 
     public Session getInternalSession() throws IllegalStateException {

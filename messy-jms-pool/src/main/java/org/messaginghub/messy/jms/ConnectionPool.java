@@ -86,8 +86,7 @@ public class ConnectionPool implements ExceptionListener {
             new KeyedPooledObjectFactory<SessionKey, SessionHolder>() {
                 @Override
                 public PooledObject<SessionHolder> makeObject(SessionKey sessionKey) throws Exception {
-
-                    return new DefaultPooledObject<SessionHolder>(new SessionHolder(makeSession(sessionKey)));
+                    return new DefaultPooledObject<SessionHolder>(new SessionHolder(ConnectionPool.this, makeSession(sessionKey)));
                 }
 
                 @Override
@@ -373,6 +372,25 @@ public class ConnectionPool implements ExceptionListener {
      */
     public void setReconnectOnException(boolean reconnectOnException) {
         this.reconnectOnException = reconnectOnException;
+    }
+
+    /**
+     * Checks for JMS version support in the underlying JMS Connection this pooled connection
+     * wrapper encapsulates.
+     *
+     * @param requiredMajor
+     * 		The JMS Major version required for a feature to be supported.
+     * @param requiredMinor
+     * 		The JMS Minor version required for a feature to be supported.
+     *
+     * @return true if the Connection supports the version range given.
+     */
+    public boolean isJMSVersionSupported(int requiredMajor, int requiredMinor) {
+        if (jmsMajorVersion >= requiredMajor && jmsMinorVersion >= requiredMinor) {
+            return true;
+        }
+
+        return false;
     }
 
     ExceptionListener getParentExceptionListener() {

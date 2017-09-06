@@ -32,12 +32,14 @@ import javax.jms.TopicSession;
  */
 public class SessionHolder {
 
+    private final ConnectionPool connection;
     private final Session session;
     private MessageProducer producer;
     private TopicPublisher publisher;
     private QueueSender sender;
 
-    public SessionHolder(Session session) {
+    public SessionHolder(ConnectionPool connection, Session session) {
+        this.connection = connection;
         this.session = session;
     }
 
@@ -89,6 +91,10 @@ public class SessionHolder {
         }
 
         return sender;
+    }
+
+    public ConnectionPool getConnection() {
+        return connection;
     }
 
     @Override

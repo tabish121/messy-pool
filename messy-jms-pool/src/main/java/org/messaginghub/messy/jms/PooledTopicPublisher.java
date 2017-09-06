@@ -27,8 +27,8 @@ import javax.jms.TopicPublisher;
  */
 public class PooledTopicPublisher extends PooledProducer implements TopicPublisher {
 
-    public PooledTopicPublisher(TopicPublisher messageProducer, Destination destination) throws JMSException {
-        super(messageProducer, destination);
+    public PooledTopicPublisher(ConnectionPool connection, TopicPublisher messageProducer, Destination destination) throws JMSException {
+        super(connection, messageProducer, destination);
     }
 
     @Override
