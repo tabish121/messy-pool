@@ -22,13 +22,13 @@ import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
 import javax.jms.IllegalStateException;
 
-import org.apache.activemq.ActiveMQConnectionFactory;
+import org.apache.qpid.jms.JmsConnectionFactory;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Tests against the PooledConnection class.
+ * A test against the PooledConnection class using QpidJMS
  */
 public class PooledConnectionTest extends JmsPoolTestSupport {
 
@@ -106,8 +106,7 @@ public class PooledConnectionTest extends JmsPoolTestSupport {
 
     protected ConnectionFactory createPooledConnectionFactory() {
         JmsPoolConnectionFactory cf = new JmsPoolConnectionFactory();
-        cf.setConnectionFactory(new ActiveMQConnectionFactory(
-            "vm://localhost?broker.persistent=false&broker.useJmx=false&broker.schedulerSupport=false"));
+        cf.setConnectionFactory(new JmsConnectionFactory(connectionURI));
         cf.setMaxConnections(1);
         LOG.debug("ConnectionFactory initialized.");
         return cf;

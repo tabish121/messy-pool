@@ -44,6 +44,10 @@
       <artifactId>geronimo-jms_2.0_spec</artifactId>
     </dependency>
     <dependency>
+      <groupId>org.messaginghub.jms</groupId>
+      <artifactId>messy-jms-pool</artifactId>
+    </dependency>
+    <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
     </dependency>
