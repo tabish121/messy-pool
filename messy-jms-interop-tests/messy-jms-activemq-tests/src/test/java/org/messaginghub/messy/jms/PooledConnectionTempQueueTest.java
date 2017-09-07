@@ -16,6 +16,8 @@
  */
 package org.messaginghub.messy.jms;
 
+import static org.junit.Assert.assertNotNull;
+
 import java.util.concurrent.Executors;
 
 import javax.jms.Connection;
@@ -47,6 +49,7 @@ public class PooledConnectionTempQueueTest extends JmsPoolTestSupport {
         cf.setConnectionFactory(factory);
 
         Connection connection = cf.createConnection();
+        assertNotNull(connection);
         connection.start();
         Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
 
@@ -72,35 +75,32 @@ public class PooledConnectionTempQueueTest extends JmsPoolTestSupport {
         cf.stop();
     }
 
-    private void sendWithReplyToTemp(ConnectionFactory cf, String serviceQueue) throws JMSException,
-        InterruptedException {
-        Connection con = cf.createConnection();
-        con.start();
-        Session session = con.createSession(false, Session.AUTO_ACKNOWLEDGE);
+    private void sendWithReplyToTemp(ConnectionFactory cf, String serviceQueue) throws JMSException, InterruptedException {
+        Connection connection = cf.createConnection();
+        connection.start();
+        Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
         TemporaryQueue tempQueue = session.createTemporaryQueue();
         TextMessage msg = session.createTextMessage("Request");
         msg.setJMSReplyTo(tempQueue);
         MessageProducer producer = session.createProducer(session.createQueue(serviceQueue));
         producer.send(msg);
 
-        // This sleep also seems to matter
-        Thread.sleep(3000);
-
         MessageConsumer consumer = session.createConsumer(tempQueue);
         Message replyMsg = consumer.receive();
+        assertNotNull(replyMsg);
+
         LOG.debug("Reply message: {}", replyMsg);
 
         consumer.close();
 
         producer.close();
         session.close();
-        con.close();
+        connection.close();
     }
 
-    public void receiveAndRespondWithMessageIdAsCorrelationId(ConnectionFactory connectionFactory,
-                                                              String queueName) throws JMSException {
-        Connection con = connectionFactory.createConnection();
-        Session session = con.createSession(false, Session.AUTO_ACKNOWLEDGE);
+    public void receiveAndRespondWithMessageIdAsCorrelationId(ConnectionFactory connectionFactory, String queueName) throws JMSException {
+        Connection connection = connectionFactory.createConnection();
+        Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
         MessageConsumer consumer = session.createConsumer(session.createQueue(queueName));
         final javax.jms.Message inMessage = consumer.receive();
 
@@ -115,6 +115,6 @@ public class PooledConnectionTempQueueTest extends JmsPoolTestSupport {
         producer.close();
         consumer.close();
         session.close();
-        con.close();
+        connection.close();
     }
 }

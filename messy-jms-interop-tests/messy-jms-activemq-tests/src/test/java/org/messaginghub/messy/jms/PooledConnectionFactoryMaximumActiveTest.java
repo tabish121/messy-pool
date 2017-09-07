@@ -17,6 +17,8 @@
 package org.messaginghub.messy.jms;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
@@ -24,6 +26,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import javax.jms.Connection;
 import javax.jms.JMSException;
@@ -31,7 +34,9 @@ import javax.jms.Session;
 
 import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.log4j.Logger;
+import org.junit.Before;
 import org.junit.Test;
+import org.messaginghub.messy.jms.util.Wait;
 
 /**
  * Checks the behavior of the PooledConnectionFactory when the maximum amount of sessions is being reached
@@ -41,8 +46,7 @@ import org.junit.Test;
 public class PooledConnectionFactoryMaximumActiveTest extends JmsPoolTestSupport {
 
     public final static Logger LOG = Logger.getLogger(PooledConnectionFactoryMaximumActiveTest.class);
-    public static Connection conn = null;
-    public static int sleepTimeout = 5000;
+    public static Connection connection = null;
 
     private static ConcurrentMap<Integer, Session> sessions = new ConcurrentHashMap<Integer, Session>();
 
@@ -50,16 +54,15 @@ public class PooledConnectionFactoryMaximumActiveTest extends JmsPoolTestSupport
         sessions.put(s.hashCode(), s);
     }
 
-    /**
-     * Tests the behavior of the sessionPool of the PooledConnectionFactory when maximum number of sessions are reached.
-     * This test uses maximumActive=1. When creating two threads that both try to create a JMS session from the same JMS
-     * connection, the thread that is second to call createSession() should block (as only 1 session is allowed) until
-     * the session is returned to pool. If it does not block, its a bug.
-     *
-     * @throws Exception
-     */
+    @Override
+    @Before
+    public void setUp() throws Exception {
+        super.setUp();
+        sessions.clear();
+    }
+
     @Test(timeout = 60000)
-    public void testApp() throws Exception {
+    public void testCreateSessionBlocksWhenMaxSessionsLoanedOutUntilReturned() throws Exception {
         // Initialize JMS connection
         ActiveMQConnectionFactory amq = new ActiveMQConnectionFactory(
             "vm://broker1?marshal=false&broker.useJmx=false&broker.persistent=false");
@@ -69,69 +72,135 @@ public class PooledConnectionFactoryMaximumActiveTest extends JmsPoolTestSupport
         cf.setMaxConnections(3);
         cf.setMaximumActiveSessionPerConnection(1);
         cf.setBlockIfSessionPoolIsFull(true);
-        conn = cf.createConnection();
+        connection = cf.createConnection();
 
         // start test runner threads. It is expected that the second thread
         // blocks on the call to createSession()
 
-        ExecutorService executor = Executors.newFixedThreadPool(2);
-        executor.submit(new TestRunner2());
-        Future<Boolean> result2 = executor.submit(new TestRunner2());
+        ExecutorService executor = Executors.newFixedThreadPool(1);
+        Future<Boolean> result1 = executor.submit(new SessionTakerAndReturner());
+        Future<Boolean> result2 = executor.submit(new SessionTaker());
 
-        // sleep to allow threads to run
-        Thread.sleep(sleepTimeout);
+        assertTrue(Wait.waitFor(() -> { return result1.isDone(); }, 5000, 10));
+        assertTrue(Wait.waitFor(() -> { return result2.isDone(); }, 5000, 10));
 
-        // second task should not have finished, instead wait on getting a
-        // JMS Session
+        // Two sessions should have been returned
+        assertEquals(2, sessions.size());
+
+        // Take all threads down
+        executor.shutdown();
+        executor.awaitTermination(10, TimeUnit.SECONDS);
+
+        cf.stop();
+    }
+
+    /**
+     * Tests the behavior of the sessionPool of the PooledConnectionFactory when maximum number of
+     * sessions are reached.  This test uses maximumActive=1. When creating two threads that both try
+     * to create a JMS session from the same JMS connection, the thread that is second to call
+     * createSession() should block (as only 1 session is allowed) until the session is returned to
+     * pool. If it does not block, its a bug.
+     *
+     * @throws Exception
+     */
+    @Test(timeout = 60000)
+    public void testCreateSessionBlocksWhenMaxSessionsLoanedOut() throws Exception {
+        // Initialize JMS connection
+        ActiveMQConnectionFactory amq = new ActiveMQConnectionFactory(
+            "vm://broker1?marshal=false&broker.useJmx=false&broker.persistent=false");
+
+        JmsPoolConnectionFactory cf = new JmsPoolConnectionFactory();
+        cf.setConnectionFactory(amq);
+        cf.setMaxConnections(3);
+        cf.setMaximumActiveSessionPerConnection(1);
+        cf.setBlockIfSessionPoolIsFull(true);
+        connection = cf.createConnection();
+
+        // start test runner threads. It is expected that the second thread
+        // blocks on the call to createSession()
+
+        ExecutorService executor = Executors.newFixedThreadPool(1);
+        Future<Boolean> result1 = executor.submit(new SessionTaker());
+        Future<Boolean> result2 = executor.submit(new SessionTaker());
+
+        assertTrue(Wait.waitFor(() -> { return result1.isDone(); }, 5000, 10));
+
+        // second task should not have finished, instead wait on getting a JMS Session
         assertEquals(false, result2.isDone());
 
         // Only 1 session should have been created
         assertEquals(1, sessions.size());
 
-        // Take all threads down
-        executor.shutdownNow();
+        // The create session should have stalled waiting for a new connection
+        assertFalse(Wait.waitFor(() -> { return result2.isDone(); }, 100, 10));
 
         cf.stop();
+
+        // The create session should have exited on stop of the factory
+        assertTrue(Wait.waitFor(() -> { return result2.isDone(); }, 5000, 10));
+
+        // Only 1 session should have been created
+        assertEquals(1, sessions.size());
+
+        // Take all threads down
+        executor.shutdown();
+        executor.awaitTermination(10, TimeUnit.SECONDS);
     }
 
-    static class TestRunner2 implements Callable<Boolean> {
+    static class SessionTakerAndReturner implements Callable<Boolean> {
 
-        public final static Logger TASK_LOG = Logger.getLogger(TestRunner2.class);
+        public final static Logger TASK_LOG = Logger.getLogger(SessionTaker.class);
 
         /**
-         * @return true if test succeeded, false otherwise
+         * @return true if session created, false otherwise
+         */
+        @Override
+        public Boolean call() {
+
+            Session session = null;
+
+            try {
+                session = PooledConnectionFactoryMaximumActiveTest.connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+                TASK_LOG.info("Created new Session with id" + session);
+                PooledConnectionFactoryMaximumActiveTest.addSession(session);
+            } catch (Exception ex) {
+                TASK_LOG.error(ex.getMessage());
+                return new Boolean(false);
+            } finally {
+                if (session != null) {
+                    try {
+                        session.close();
+                    } catch (JMSException e) {
+                    }
+                }
+            }
+
+            return new Boolean(session != null);
+        }
+    }
+
+    static class SessionTaker implements Callable<Boolean> {
+
+        public final static Logger TASK_LOG = Logger.getLogger(SessionTaker.class);
+
+        /**
+         * @return true if session created, false otherwise
          */
         @Override
         public Boolean call() {
 
             Session one = null;
 
-            // wait at most 5 seconds for the call to createSession
             try {
-
-                if (PooledConnectionFactoryMaximumActiveTest.conn == null) {
-                    TASK_LOG.error("Connection not yet initialized. Aborting test.");
-                    return new Boolean(false);
-                }
-
-                one = PooledConnectionFactoryMaximumActiveTest.conn.createSession(false, Session.AUTO_ACKNOWLEDGE);
+                one = PooledConnectionFactoryMaximumActiveTest.connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
                 TASK_LOG.info("Created new Session with id" + one);
                 PooledConnectionFactoryMaximumActiveTest.addSession(one);
-                Thread.sleep(2 * PooledConnectionFactoryMaximumActiveTest.sleepTimeout);
             } catch (Exception ex) {
                 TASK_LOG.error(ex.getMessage());
                 return new Boolean(false);
-            } finally {
-                if (one != null)
-                    try {
-                        one.close();
-                    } catch (JMSException e) {
-                        TASK_LOG.error(e.getMessage());
-                    }
             }
 
-            // all good, test succeeded
-            return new Boolean(true);
+            return new Boolean(one != null);
         }
     }
 }

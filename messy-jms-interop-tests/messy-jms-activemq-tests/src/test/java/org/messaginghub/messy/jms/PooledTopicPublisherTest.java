@@ -17,13 +17,7 @@
 package org.messaginghub.messy.jms;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-
-import javax.jms.Connection;
 import javax.jms.ExceptionListener;
 import javax.jms.JMSException;
 import javax.jms.Session;
@@ -32,13 +26,9 @@ import javax.jms.TopicPublisher;
 import javax.jms.TopicSession;
 
 import org.apache.activemq.ActiveMQConnectionFactory;
-import org.apache.activemq.broker.BrokerService;
-import org.apache.activemq.broker.TransportConnector;
 import org.apache.activemq.command.ActiveMQTopic;
 import org.junit.After;
 import org.junit.Test;
-import org.messaginghub.messy.jms.util.SocketProxy;
-import org.messaginghub.messy.jms.util.Wait;
 
 public class PooledTopicPublisherTest extends JmsPoolTestSupport {
 
@@ -91,47 +81,5 @@ public class PooledTopicPublisherTest extends JmsPoolTestSupport {
         };
         connection.setExceptionListener(listener);
         assertEquals(listener, connection.getExceptionListener());
-    }
-
-    @Test(timeout = 60000)
-    public void testJmsPoolConnectionAfterInactivity() throws Exception {
-        brokerService = new BrokerService();
-        TransportConnector networkConnector = brokerService.addConnector("tcp://localhost:0");
-        brokerService.setPersistent(false);
-        brokerService.setUseJmx(true);
-        brokerService.getManagementContext().setCreateConnector(false);
-        brokerService.setAdvisorySupport(false);
-        brokerService.setSchedulerSupport(false);
-        brokerService.start();
-
-        SocketProxy proxy = new SocketProxy(networkConnector.getConnectUri());
-
-        pcf = new JmsPoolConnectionFactory();
-        String uri = proxy.getUrl().toString() + "?trace=true&wireFormat.maxInactivityDuration=500&wireFormat.maxInactivityDurationInitalDelay=500";
-        pcf.setConnectionFactory(new ActiveMQConnectionFactory(uri));
-
-        JmsPoolConnection conn =  (JmsPoolConnection) pcf.createConnection();
-        Connection amq = conn.getConnection();
-        assertNotNull(amq);
-        final CountDownLatch gotException = new CountDownLatch(1);
-        conn.setExceptionListener(new ExceptionListener() {
-            @Override
-            public void onException(JMSException exception) {
-                gotException.countDown();
-            }});
-        conn.setClientID(getTestName());
-
-        // let it hang, simulate a server hang so inactivity timeout kicks in
-        proxy.pause();
-
-        assertTrue(Wait.waitFor(new Wait.Condition() {
-
-            @Override
-            public boolean isSatisfied() throws Exception {
-                return brokerService.getAdminView().getCurrentConnectionsCount() == 0;
-            }
-        }, TimeUnit.SECONDS.toMillis(15), TimeUnit.MILLISECONDS.toMillis(100)));
-
-        conn.close();
     }
 }

@@ -153,7 +153,7 @@ public class PooledConnectionSessionCleanupTest extends JmsPoolTestSupport {
         // While all the message are in flight we should get anything on this consumer.
         Session session = directConn1.createSession(false, Session.AUTO_ACKNOWLEDGE);
         MessageConsumer consumer = session.createConsumer(queue);
-        assertNull(consumer.receive(1000));
+        assertNull(consumer.receive(500));
 
         pooledConn1.close();
 
@@ -191,7 +191,7 @@ public class PooledConnectionSessionCleanupTest extends JmsPoolTestSupport {
         // While all the message are in flight we should get anything on this consumer.
         Session session = directConn1.createSession(false, Session.AUTO_ACKNOWLEDGE);
         MessageConsumer consumer = session.createConsumer(queue);
-        assertNull(consumer.receive(1000));
+        assertNull(consumer.receive(500));
 
         directConn2.close();
 

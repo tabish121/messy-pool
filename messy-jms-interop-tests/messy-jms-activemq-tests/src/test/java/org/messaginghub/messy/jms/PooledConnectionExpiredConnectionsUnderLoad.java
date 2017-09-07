@@ -31,9 +31,9 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class PooledConnectionBrokenConnectionFilterTest extends JmsPoolTestSupport {
+public class PooledConnectionExpiredConnectionsUnderLoad extends JmsPoolTestSupport {
 
-    private static final Logger LOG = LoggerFactory.getLogger(PooledConnectionBrokenConnectionFilterTest.class);
+    private static final Logger LOG = LoggerFactory.getLogger(PooledConnectionExpiredConnectionsUnderLoad.class);
 
     @Override
     @Before
@@ -51,14 +51,14 @@ public class PooledConnectionBrokenConnectionFilterTest extends JmsPoolTestSuppo
     }
 
     @Test(timeout = 120000)
-    public void demo() throws JMSException, InterruptedException {
+    public void testExpiredConnectionsAreNotReturned() throws JMSException, InterruptedException {
         final CountDownLatch latch = new CountDownLatch(1);
         final AtomicBoolean done = new AtomicBoolean(false);
         final JmsPoolConnectionFactory pooled = new JmsPoolConnectionFactory();
         pooled.setConnectionFactory(new ActiveMQConnectionFactory("vm://localhost?create=false"));
 
         pooled.setMaxConnections(2);
-        pooled.setExpiryTimeout(5L);
+        pooled.setExpiryTimeout(1L);
         Thread[] threads = new Thread[5];
         for (int i = 0; i < threads.length; i++) {
             threads[i] = new Thread(new Runnable() {
@@ -84,11 +84,12 @@ public class PooledConnectionBrokenConnectionFilterTest extends JmsPoolTestSuppo
             thread.start();
         }
 
-        if (latch.await(10, TimeUnit.SECONDS)) {
+        if (latch.await(3, TimeUnit.SECONDS)) {
             fail("A thread obtained broken connection");
         }
 
         done.set(true);
+
         for (Thread thread : threads) {
             thread.join();
         }
