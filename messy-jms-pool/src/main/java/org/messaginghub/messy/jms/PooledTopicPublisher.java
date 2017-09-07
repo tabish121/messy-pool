@@ -56,7 +56,7 @@ public class PooledTopicPublisher extends PooledMessageProducer implements Topic
         getTopicPublisher().publish(topic, message, i, i1, l);
     }
 
-    protected TopicPublisher getTopicPublisher() {
+    protected TopicPublisher getTopicPublisher() throws JMSException {
         return (TopicPublisher) getMessageProducer();
     }
 }

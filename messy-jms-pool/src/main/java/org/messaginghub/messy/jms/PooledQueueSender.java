@@ -46,7 +46,7 @@ public class PooledQueueSender extends PooledMessageProducer implements QueueSen
         return (Queue) getDestination();
     }
 
-    protected QueueSender getQueueSender() {
+    protected QueueSender getQueueSender() throws JMSException {
         return (QueueSender) getMessageProducer();
     }
 }

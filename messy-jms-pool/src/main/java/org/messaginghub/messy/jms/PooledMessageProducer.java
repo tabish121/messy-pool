@@ -63,8 +63,10 @@ public class PooledMessageProducer implements MessageProducer {
 
     @Override
     public void close() throws JMSException {
-        if (!anonymous && closed.compareAndSet(false, true)) {
-            this.messageProducer.close();
+        if (closed.compareAndSet(false, true)) {
+            if (!anonymous) {
+                this.messageProducer.close();
+            }
         }
     }
 
@@ -239,9 +241,15 @@ public class PooledMessageProducer implements MessageProducer {
         }
     }
 
-    // Implementation methods
-    // -------------------------------------------------------------------------
-    protected MessageProducer getMessageProducer() {
+    @Override
+    public String toString() {
+        return getClass().getSimpleName() + " { " + messageProducer + " }";
+    }
+
+    //----- Internal Implementation ------------------------------------------//
+
+    protected MessageProducer getMessageProducer() throws JMSException {
+        checkClosed();
         return messageProducer;
     }
 
@@ -249,12 +257,7 @@ public class PooledMessageProducer implements MessageProducer {
         return anonymous;
     }
 
-    @Override
-    public String toString() {
-        return "PooledProducer { " + messageProducer + " }";
-    }
-
-    private void checkClosed() throws JMSException {
+    protected void checkClosed() throws JMSException {
         if (closed.get()) {
             throw new JMSException("This message producer has been closed.");
         }
