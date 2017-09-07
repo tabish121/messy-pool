@@ -36,12 +36,12 @@ import org.apache.activemq.broker.TransportConnector;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.messaginghub.messy.jms.PooledConnectionFactory;
+import org.messaginghub.messy.jms.JmsPoolConnectionFactory;
 
 public class PooledConnectionFailoverTest extends JmsPoolTestSupport {
 
     protected ActiveMQConnectionFactory directConnFact;
-    protected PooledConnectionFactory pooledConnFact;
+    protected JmsPoolConnectionFactory pooledConnFact;
 
     @Override
     @Before
@@ -52,7 +52,7 @@ public class PooledConnectionFailoverTest extends JmsPoolTestSupport {
 
         // Create the ActiveMQConnectionFactory and the PooledConnectionFactory.
         directConnFact = new ActiveMQConnectionFactory(connectionURI);
-        pooledConnFact = new PooledConnectionFactory();
+        pooledConnFact = new JmsPoolConnectionFactory();
         pooledConnFact.setConnectionFactory(directConnFact);
         pooledConnFact.setMaxConnections(1);
         pooledConnFact.setReconnectOnException(true);

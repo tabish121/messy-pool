@@ -22,12 +22,14 @@ import javax.jms.Message;
 import javax.jms.Queue;
 import javax.jms.QueueSender;
 
+import org.messaginghub.messy.jms.pool.PooledConnection;
+
 /**
  * {@link QueueSender} instance that is created and managed by the PooledConnection.
  */
-public class PooledQueueSender extends PooledMessageProducer implements QueueSender {
+public class JmsPoolQueueSender extends JmsPoolMessageProducer implements QueueSender {
 
-    public PooledQueueSender(ConnectionPool connection, QueueSender messageProducer, Destination destination) throws JMSException {
+    public JmsPoolQueueSender(PooledConnection connection, QueueSender messageProducer, Destination destination) throws JMSException {
         super(connection, messageProducer, destination);
     }
 

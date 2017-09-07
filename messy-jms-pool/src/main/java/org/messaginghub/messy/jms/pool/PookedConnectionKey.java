@@ -14,12 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.messaginghub.messy.jms;
+package org.messaginghub.messy.jms.pool;
 
 /**
  * A cache key for the connection details
  */
-public class ConnectionKey {
+public final class PookedConnectionKey {
 
     private final String userName;
     private final String password;
@@ -33,7 +33,7 @@ public class ConnectionKey {
      * @param password
      * 		The password that this key represents
      */
-    public ConnectionKey(String userName, String password) {
+    public PookedConnectionKey(String userName, String password) {
         this.password = password;
         this.userName = userName;
         hash = 31;
@@ -76,7 +76,7 @@ public class ConnectionKey {
             return false;
         }
 
-        ConnectionKey other = (ConnectionKey) obj;
+        PookedConnectionKey other = (PookedConnectionKey) obj;
         if (hash != other.hash) {
             return false;
         }

@@ -31,6 +31,9 @@ import javax.naming.NamingEnumeration;
 import javax.naming.spi.ObjectFactory;
 import javax.transaction.TransactionManager;
 
+import org.messaginghub.messy.jms.pool.PookedConnectionKey;
+import org.messaginghub.messy.jms.pool.PooledConnection;
+import org.messaginghub.messy.jms.pool.PooledXaConnection;
 import org.messaginghub.messy.jms.util.IntrospectionSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,9 +42,9 @@ import org.slf4j.LoggerFactory;
  * A pooled connection factory that automatically enlists sessions in the
  * current active XA transaction if any.
  */
-public class XaPooledConnectionFactory extends PooledConnectionFactory implements ObjectFactory, Serializable {
+public class JmsPoolXaConnectionFactory extends JmsPoolConnectionFactory implements ObjectFactory, Serializable {
 
-    private static final transient Logger LOG = LoggerFactory.getLogger(XaPooledConnectionFactory.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(JmsPoolXaConnectionFactory.class);
     private static final long serialVersionUID = -6545688026350913005L;
 
     private TransactionManager transactionManager;
@@ -75,7 +78,7 @@ public class XaPooledConnectionFactory extends PooledConnectionFactory implement
     }
 
     @Override
-    protected Connection createConnection(ConnectionKey key) throws JMSException {
+    protected Connection createConnection(PookedConnectionKey key) throws JMSException {
         if (connectionFactory instanceof XAConnectionFactory) {
             if (key.getUserName() == null && key.getPassword() == null) {
                 return ((XAConnectionFactory) connectionFactory).createXAConnection();
@@ -88,8 +91,8 @@ public class XaPooledConnectionFactory extends PooledConnectionFactory implement
     }
 
     @Override
-    protected ConnectionPool createConnectionPool(Connection connection) {
-        return new XaConnectionPool(connection, getTransactionManager());
+    protected PooledConnection createConnectionPool(Connection connection) {
+        return new PooledXaConnection(connection, getTransactionManager());
     }
 
     @SuppressWarnings("unchecked")

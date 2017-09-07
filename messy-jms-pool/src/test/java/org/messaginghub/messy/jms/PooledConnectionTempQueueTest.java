@@ -30,7 +30,7 @@ import javax.jms.TextMessage;
 
 import org.apache.activemq.ActiveMQConnectionFactory;
 import org.junit.Test;
-import org.messaginghub.messy.jms.PooledConnectionFactory;
+import org.messaginghub.messy.jms.JmsPoolConnectionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +44,7 @@ public class PooledConnectionTempQueueTest extends JmsPoolTestSupport {
     public void testTempQueueIssue() throws JMSException, InterruptedException {
         ActiveMQConnectionFactory factory = new ActiveMQConnectionFactory(
             "vm://localhost?broker.persistent=false&broker.useJmx=false");
-        final PooledConnectionFactory cf = new PooledConnectionFactory();
+        final JmsPoolConnectionFactory cf = new JmsPoolConnectionFactory();
         cf.setConnectionFactory(factory);
 
         Connection connection = cf.createConnection();

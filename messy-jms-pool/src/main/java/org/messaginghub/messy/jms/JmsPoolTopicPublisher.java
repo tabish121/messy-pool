@@ -22,12 +22,14 @@ import javax.jms.Message;
 import javax.jms.Topic;
 import javax.jms.TopicPublisher;
 
+import org.messaginghub.messy.jms.pool.PooledConnection;
+
 /**
  * A {@link TopicPublisher} instance that is created and managed by a PooledConnection.
  */
-public class PooledTopicPublisher extends PooledMessageProducer implements TopicPublisher {
+public class JmsPoolTopicPublisher extends JmsPoolMessageProducer implements TopicPublisher {
 
-    public PooledTopicPublisher(ConnectionPool connection, TopicPublisher messageProducer, Destination destination) throws JMSException {
+    public JmsPoolTopicPublisher(PooledConnection connection, TopicPublisher messageProducer, Destination destination) throws JMSException {
         super(connection, messageProducer, destination);
     }
 

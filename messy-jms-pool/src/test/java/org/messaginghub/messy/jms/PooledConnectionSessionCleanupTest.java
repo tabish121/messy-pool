@@ -35,7 +35,7 @@ import org.apache.activemq.command.ActiveMQQueue;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.messaginghub.messy.jms.PooledConnectionFactory;
+import org.messaginghub.messy.jms.JmsPoolConnectionFactory;
 import org.messaginghub.messy.jms.util.Wait;
 
 public class PooledConnectionSessionCleanupTest extends JmsPoolTestSupport {
@@ -44,7 +44,7 @@ public class PooledConnectionSessionCleanupTest extends JmsPoolTestSupport {
     protected Connection directConn1;
     protected Connection directConn2;
 
-    protected PooledConnectionFactory pooledConnFact;
+    protected JmsPoolConnectionFactory pooledConnFact;
     protected Connection pooledConn1;
     protected Connection pooledConn2;
 
@@ -74,7 +74,7 @@ public class PooledConnectionSessionCleanupTest extends JmsPoolTestSupport {
         // Set a long idle timeout on the pooled connections to better show the
         // problem of holding onto created resources on close.
         directConnFact = new ActiveMQConnectionFactory(brokerService.getVmConnectorURI());
-        pooledConnFact = new PooledConnectionFactory();
+        pooledConnFact = new JmsPoolConnectionFactory();
         pooledConnFact.setConnectionFactory(directConnFact);
         pooledConnFact.setIdleTimeout((int)TimeUnit.MINUTES.toMillis(60));
         pooledConnFact.setMaxConnections(1);

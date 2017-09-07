@@ -34,6 +34,8 @@ import org.apache.commons.pool2.PooledObject;
 import org.apache.commons.pool2.impl.DefaultPooledObject;
 import org.apache.commons.pool2.impl.GenericKeyedObjectPool;
 import org.apache.commons.pool2.impl.GenericKeyedObjectPoolConfig;
+import org.messaginghub.messy.jms.pool.PookedConnectionKey;
+import org.messaginghub.messy.jms.pool.PooledConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,7 +51,7 @@ import org.slf4j.LoggerFactory;
  * are expensive to create and can remain idle a minimal cost. Consumers, on the other hand, are usually
  * just created at startup and left active, handling incoming messages as they come. When a consumer is
  * complete, it is best to close it rather than return it to a pool for later reuse: this is because,
- * even if a consumer is idle, ActiveMQ will keep delivering messages to the consumer's prefetch buffer,
+ * even if a consumer is idle, the broker may keep delivering messages to the consumer's prefetch buffer,
  * where they'll get held until the consumer is active again.
  *
  * If you are creating a collection of consumers (for example, for multi-threaded message consumption), you
@@ -61,15 +63,15 @@ import org.slf4j.LoggerFactory;
  * pool. This is performed by an "idle object eviction" thread, which runs asynchronously. Caution should
  * be used when configuring this optional feature. Eviction runs contend with client threads for access
  * to objects in the pool, so if they run too frequently performance issues may result. The idle object
- * eviction thread may be configured using the {@link org.messaginghub.messy.jms.PooledConnectionFactory#setTimeBetweenExpirationCheckMillis} method.  By
+ * eviction thread may be configured using the {@link org.messaginghub.messy.jms.JmsPoolConnectionFactory#setTimeBetweenExpirationCheckMillis} method.  By
  * default the value is -1 which means no eviction thread will be run.  Set to a non-negative value to
  * configure the idle eviction thread to run.
  */
-public class PooledConnectionFactory implements ConnectionFactory, QueueConnectionFactory, TopicConnectionFactory {
-    private static final transient Logger LOG = LoggerFactory.getLogger(PooledConnectionFactory.class);
+public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnectionFactory, TopicConnectionFactory {
+    private static final transient Logger LOG = LoggerFactory.getLogger(JmsPoolConnectionFactory.class);
 
     protected final AtomicBoolean stopped = new AtomicBoolean(false);
-    private GenericKeyedObjectPool<ConnectionKey, ConnectionPool> connectionsPool;
+    private GenericKeyedObjectPool<PookedConnectionKey, PooledConnection> connectionsPool;
 
     protected Object connectionFactory;
 
@@ -83,19 +85,19 @@ public class PooledConnectionFactory implements ConnectionFactory, QueueConnecti
     private boolean reconnectOnException = true;
 
     // Temporary value used to always fetch the result of makeObject.
-    private final AtomicReference<ConnectionPool> mostRecentlyCreated = new AtomicReference<ConnectionPool>(null);
+    private final AtomicReference<PooledConnection> mostRecentlyCreated = new AtomicReference<PooledConnection>(null);
 
     public void initConnectionsPool() {
         if (this.connectionsPool == null) {
             final GenericKeyedObjectPoolConfig poolConfig = new GenericKeyedObjectPoolConfig();
             poolConfig.setJmxEnabled(false);
-            this.connectionsPool = new GenericKeyedObjectPool<ConnectionKey, ConnectionPool>(
-                new KeyedPooledObjectFactory<ConnectionKey, ConnectionPool>() {
+            this.connectionsPool = new GenericKeyedObjectPool<PookedConnectionKey, PooledConnection>(
+                new KeyedPooledObjectFactory<PookedConnectionKey, PooledConnection>() {
                     @Override
-                    public PooledObject<ConnectionPool> makeObject(ConnectionKey connectionKey) throws Exception {
+                    public PooledObject<PooledConnection> makeObject(PookedConnectionKey connectionKey) throws Exception {
                         Connection delegate = createConnection(connectionKey);
 
-                        ConnectionPool connection = createConnectionPool(delegate);
+                        PooledConnection connection = createConnectionPool(delegate);
                         connection.setIdleTimeout(getIdleTimeout());
                         connection.setExpiryTimeout(getExpiryTimeout());
                         connection.setMaximumActiveSessionPerConnection(getMaximumActiveSessionPerConnection());
@@ -108,14 +110,14 @@ public class PooledConnectionFactory implements ConnectionFactory, QueueConnecti
 
                         LOG.trace("Created new connection: {}", connection);
 
-                        PooledConnectionFactory.this.mostRecentlyCreated.set(connection);
+                        JmsPoolConnectionFactory.this.mostRecentlyCreated.set(connection);
 
-                        return new DefaultPooledObject<ConnectionPool>(connection);
+                        return new DefaultPooledObject<PooledConnection>(connection);
                     }
 
                     @Override
-                    public void destroyObject(ConnectionKey connectionKey, PooledObject<ConnectionPool> pooledObject) throws Exception {
-                        ConnectionPool connection = pooledObject.getObject();
+                    public void destroyObject(PookedConnectionKey connectionKey, PooledObject<PooledConnection> pooledObject) throws Exception {
+                        PooledConnection connection = pooledObject.getObject();
                         try {
                             LOG.trace("Destroying connection: {}", connection);
                             connection.close();
@@ -125,8 +127,8 @@ public class PooledConnectionFactory implements ConnectionFactory, QueueConnecti
                     }
 
                     @Override
-                    public boolean validateObject(ConnectionKey connectionKey, PooledObject<ConnectionPool> pooledObject) {
-                        ConnectionPool connection = pooledObject.getObject();
+                    public boolean validateObject(PookedConnectionKey connectionKey, PooledObject<PooledConnection> pooledObject) {
+                        PooledConnection connection = pooledObject.getObject();
                         if (connection != null && connection.expiredCheck()) {
                             LOG.trace("Connection has expired: {} and will be destroyed", connection);
                             return false;
@@ -136,11 +138,11 @@ public class PooledConnectionFactory implements ConnectionFactory, QueueConnecti
                     }
 
                     @Override
-                    public void activateObject(ConnectionKey connectionKey, PooledObject<ConnectionPool> pooledObject) throws Exception {
+                    public void activateObject(PookedConnectionKey connectionKey, PooledObject<PooledConnection> pooledObject) throws Exception {
                     }
 
                     @Override
-                    public void passivateObject(ConnectionKey connectionKey, PooledObject<ConnectionPool> pooledObject) throws Exception {
+                    public void passivateObject(PookedConnectionKey connectionKey, PooledObject<PooledConnection> pooledObject) throws Exception {
                     }
 
                 }, poolConfig);
@@ -212,8 +214,8 @@ public class PooledConnectionFactory implements ConnectionFactory, QueueConnecti
             return null;
         }
 
-        ConnectionPool connection = null;
-        ConnectionKey key = new ConnectionKey(userName, password);
+        PooledConnection connection = null;
+        PookedConnectionKey key = new PookedConnectionKey(userName, password);
 
         // This will either return an existing non-expired ConnectionPool or it
         // will create a new one to meet the demand.
@@ -259,8 +261,8 @@ public class PooledConnectionFactory implements ConnectionFactory, QueueConnecti
         return newPooledConnection(connection);
     }
 
-    protected Connection newPooledConnection(ConnectionPool connection) {
-        return new PooledConnection(connection);
+    protected Connection newPooledConnection(PooledConnection connection) {
+        return new JmsPoolConnection(connection);
     }
 
     private JMSException createJmsException(String msg, Exception cause) {
@@ -270,7 +272,7 @@ public class PooledConnectionFactory implements ConnectionFactory, QueueConnecti
         return exception;
     }
 
-    protected Connection createConnection(ConnectionKey key) throws JMSException {
+    protected Connection createConnection(PookedConnectionKey key) throws JMSException {
         if (connectionFactory instanceof ConnectionFactory) {
             if (key.getUserName() == null && key.getPassword() == null) {
                 return ((ConnectionFactory) connectionFactory).createConnection();
@@ -476,7 +478,7 @@ public class PooledConnectionFactory implements ConnectionFactory, QueueConnecti
     }
 
     /**
-     * Whether to create a connection on starting this {@link PooledConnectionFactory}.
+     * Whether to create a connection on starting this {@link JmsPoolConnectionFactory}.
      * <p>
      * This can be used to warm-up the pool on startup. Notice that any kind of exception
      * happens during startup is logged at WARN level and ignored.
@@ -518,7 +520,7 @@ public class PooledConnectionFactory implements ConnectionFactory, QueueConnecti
      *
      * @return this factories pool of ConnectionPool instances.
      */
-    protected GenericKeyedObjectPool<ConnectionKey, ConnectionPool> getConnectionsPool() {
+    protected GenericKeyedObjectPool<PookedConnectionKey, PooledConnection> getConnectionsPool() {
         initConnectionsPool();
         return this.connectionsPool;
     }
@@ -561,8 +563,8 @@ public class PooledConnectionFactory implements ConnectionFactory, QueueConnecti
      *
      * @return instance of a new ConnectionPool.
      */
-    protected ConnectionPool createConnectionPool(Connection connection) {
-        return new ConnectionPool(connection);
+    protected PooledConnection createConnectionPool(Connection connection) {
+        return new PooledConnection(connection);
     }
 
     /**

@@ -61,7 +61,7 @@ public class XAConnectionPoolTest extends JmsPoolTestSupport {
     public void testAfterCompletionCanClose() throws Exception {
         final Vector<Synchronization> syncs = new Vector<Synchronization>();
         ActiveMQTopic topic = new ActiveMQTopic("test");
-        XaPooledConnectionFactory pcf = new XaPooledConnectionFactory();
+        JmsPoolXaConnectionFactory pcf = new JmsPoolXaConnectionFactory();
         pcf.setConnectionFactory(new XAConnectionFactoryOnly(new ActiveMQXAConnectionFactory("vm://test?broker.persistent=false")));
         // simple TM that is in a tx and will track syncs
         pcf.setTransactionManager(new TransactionManager(){
@@ -141,8 +141,8 @@ public class XAConnectionPoolTest extends JmsPoolTestSupport {
         TopicConnection connection = (TopicConnection) pcf.createConnection();
         TopicSession session = connection.createTopicSession(false, Session.AUTO_ACKNOWLEDGE);
 
-        assertTrue(session instanceof PooledSession);
-        PooledSession pooledSession = (PooledSession) session;
+        assertTrue(session instanceof JmsPoolSession);
+        JmsPoolSession pooledSession = (JmsPoolSession) session;
         assertTrue(pooledSession.getInternalSession() instanceof ActiveMQXASession);
 
         TopicPublisher publisher = session.createPublisher(topic);
@@ -164,7 +164,7 @@ public class XAConnectionPoolTest extends JmsPoolTestSupport {
     public void testAckModeOfPoolNonXAWithTM() throws Exception {
         final Vector<Synchronization> syncs = new Vector<Synchronization>();
         ActiveMQTopic topic = new ActiveMQTopic("test");
-        XaPooledConnectionFactory pcf = new XaPooledConnectionFactory();
+        JmsPoolXaConnectionFactory pcf = new JmsPoolXaConnectionFactory();
         pcf.setConnectionFactory(new XAConnectionFactoryOnly(new ActiveMQXAConnectionFactory(
             "vm://test?broker.persistent=false&broker.useJmx=false&jms.xaAckMode=" + Session.CLIENT_ACKNOWLEDGE)));
 
@@ -263,7 +263,7 @@ public class XAConnectionPoolTest extends JmsPoolTestSupport {
 
     @Test(timeout = 60000)
     public void testInstanceOf() throws  Exception {
-        XaPooledConnectionFactory pcf = new XaPooledConnectionFactory();
+        JmsPoolXaConnectionFactory pcf = new JmsPoolXaConnectionFactory();
         assertTrue(pcf instanceof QueueConnectionFactory);
         assertTrue(pcf instanceof TopicConnectionFactory);
         pcf.stop();
@@ -271,27 +271,27 @@ public class XAConnectionPoolTest extends JmsPoolTestSupport {
 
     @Test(timeout = 60000)
     public void testBindable() throws Exception {
-        XaPooledConnectionFactory pcf = new XaPooledConnectionFactory();
+        JmsPoolXaConnectionFactory pcf = new JmsPoolXaConnectionFactory();
         assertTrue(pcf instanceof ObjectFactory);
-        assertTrue(((ObjectFactory)pcf).getObjectInstance(null, null, null, null) instanceof XaPooledConnectionFactory);
+        assertTrue(((ObjectFactory)pcf).getObjectInstance(null, null, null, null) instanceof JmsPoolXaConnectionFactory);
         assertTrue(pcf.isTmFromJndi());
         pcf.stop();
     }
 
     @Test(timeout = 60000)
     public void testBindableEnvOverrides() throws Exception {
-        XaPooledConnectionFactory pcf = new XaPooledConnectionFactory();
+        JmsPoolXaConnectionFactory pcf = new JmsPoolXaConnectionFactory();
         assertTrue(pcf instanceof ObjectFactory);
         Hashtable<String, String> environment = new Hashtable<String, String>();
         environment.put("tmFromJndi", String.valueOf(Boolean.FALSE));
-        assertTrue(((ObjectFactory) pcf).getObjectInstance(null, null, null, environment) instanceof XaPooledConnectionFactory);
+        assertTrue(((ObjectFactory) pcf).getObjectInstance(null, null, null, environment) instanceof JmsPoolXaConnectionFactory);
         assertFalse(pcf.isTmFromJndi());
         pcf.stop();
     }
 
     @Test(timeout = 60000)
     public void testSenderAndPublisherDest() throws Exception {
-        XaPooledConnectionFactory pcf = new XaPooledConnectionFactory();
+        JmsPoolXaConnectionFactory pcf = new JmsPoolXaConnectionFactory();
         pcf.setConnectionFactory(new ActiveMQXAConnectionFactory(
             "vm://test?broker.persistent=false&broker.useJmx=false"));
 
@@ -313,7 +313,7 @@ public class XAConnectionPoolTest extends JmsPoolTestSupport {
 
     @Test(timeout = 60000)
     public void testSessionArgsIgnoredWithTm() throws Exception {
-        XaPooledConnectionFactory pcf = new XaPooledConnectionFactory();
+        JmsPoolXaConnectionFactory pcf = new JmsPoolXaConnectionFactory();
         pcf.setConnectionFactory(new ActiveMQXAConnectionFactory(
             "vm://test?broker.persistent=false&broker.useJmx=false"));
 

@@ -41,7 +41,6 @@ import org.apache.activemq.broker.TransportConnector;
 import org.apache.log4j.Logger;
 import org.junit.After;
 import org.junit.Test;
-import org.messaginghub.messy.jms.PooledConnectionFactory;
 
 public class PooledSessionExhaustionBlockTimeoutTest extends JmsPoolTestSupport {
     private static final String QUEUE = "FOO";
@@ -50,7 +49,7 @@ public class PooledSessionExhaustionBlockTimeoutTest extends JmsPoolTestSupport 
     private final Logger LOG = Logger.getLogger(getClass());
 
     private ActiveMQConnectionFactory factory;
-    private PooledConnectionFactory pooledFactory;
+    private JmsPoolConnectionFactory pooledFactory;
     private String connectionUri;
     private int numReceived = 0;
     private final List<Exception> exceptionList = new ArrayList<Exception>();
@@ -69,7 +68,7 @@ public class PooledSessionExhaustionBlockTimeoutTest extends JmsPoolTestSupport 
 
         connectionUri = connector.getPublishableConnectString();
         factory = new ActiveMQConnectionFactory(connectionUri);
-        pooledFactory = new PooledConnectionFactory();
+        pooledFactory = new JmsPoolConnectionFactory();
         pooledFactory.setConnectionFactory(factory);
         pooledFactory.setMaxConnections(1);
         pooledFactory.setBlockIfSessionPoolIsFull(true);

@@ -48,26 +48,28 @@ import javax.jms.XASession;
 import javax.transaction.xa.XAResource;
 
 import org.apache.commons.pool2.KeyedObjectPool;
+import org.messaginghub.messy.jms.pool.PooledSessionHolder;
+import org.messaginghub.messy.jms.pool.PooledSessionKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class PooledSession implements Session, TopicSession, QueueSession, XASession {
-    private static final transient Logger LOG = LoggerFactory.getLogger(PooledSession.class);
+public class JmsPoolSession implements Session, TopicSession, QueueSession, XASession {
+    private static final transient Logger LOG = LoggerFactory.getLogger(JmsPoolSession.class);
 
-    private final SessionKey key;
-    private final KeyedObjectPool<SessionKey, SessionHolder> sessionPool;
+    private final PooledSessionKey key;
+    private final KeyedObjectPool<PooledSessionKey, PooledSessionHolder> sessionPool;
     private final CopyOnWriteArrayList<MessageConsumer> consumers = new CopyOnWriteArrayList<MessageConsumer>();
     private final CopyOnWriteArrayList<QueueBrowser> browsers = new CopyOnWriteArrayList<QueueBrowser>();
-    private final CopyOnWriteArrayList<PooledSessionEventListener> sessionEventListeners = new CopyOnWriteArrayList<PooledSessionEventListener>();
+    private final CopyOnWriteArrayList<JmsPoolSessionEventListener> sessionEventListeners = new CopyOnWriteArrayList<JmsPoolSessionEventListener>();
     private final AtomicBoolean closed = new AtomicBoolean();
 
-    private SessionHolder sessionHolder;
+    private PooledSessionHolder sessionHolder;
     private boolean transactional = true;
     private boolean ignoreClose;
     private boolean isXa;
     private boolean useAnonymousProducers = true;
 
-    public PooledSession(SessionKey key, SessionHolder sessionHolder, KeyedObjectPool<SessionKey, SessionHolder> sessionPool, boolean transactional, boolean anonymous) {
+    public JmsPoolSession(PooledSessionKey key, PooledSessionHolder sessionHolder, KeyedObjectPool<PooledSessionKey, PooledSessionHolder> sessionPool, boolean transactional, boolean anonymous) {
         this.key = key;
         this.sessionHolder = sessionHolder;
         this.sessionPool = sessionPool;
@@ -75,19 +77,11 @@ public class PooledSession implements Session, TopicSession, QueueSession, XASes
         this.useAnonymousProducers = anonymous;
     }
 
-    public void addSessionEventListener(PooledSessionEventListener listener) {
+    public void addSessionEventListener(JmsPoolSessionEventListener listener) {
         // only add if really needed
         if (!sessionEventListeners.contains(listener)) {
             this.sessionEventListeners.add(listener);
         }
-    }
-
-    protected boolean isIgnoreClose() {
-        return ignoreClose;
-    }
-
-    protected void setIgnoreClose(boolean ignoreClose) {
-        this.ignoreClose = ignoreClose;
     }
 
     @Override
@@ -127,7 +121,7 @@ public class PooledSession implements Session, TopicSession, QueueSession, XASes
             } finally {
                 consumers.clear();
                 browsers.clear();
-                for (PooledSessionEventListener listener : this.sessionEventListeners) {
+                for (JmsPoolSessionEventListener listener : this.sessionEventListeners) {
                     listener.onSessionClosed(this);
                 }
                 sessionEventListeners.clear();
@@ -209,7 +203,7 @@ public class PooledSession implements Session, TopicSession, QueueSession, XASes
         result = getInternalSession().createTemporaryQueue();
 
         // Notify all of the listeners of the created temporary Queue.
-        for (PooledSessionEventListener listener : this.sessionEventListeners) {
+        for (JmsPoolSessionEventListener listener : this.sessionEventListeners) {
             listener.onTemporaryQueueCreate(result);
         }
 
@@ -223,7 +217,7 @@ public class PooledSession implements Session, TopicSession, QueueSession, XASes
         result = getInternalSession().createTemporaryTopic();
 
         // Notify all of the listeners of the created temporary Topic.
-        for (PooledSessionEventListener listener : this.sessionEventListeners) {
+        for (JmsPoolSessionEventListener listener : this.sessionEventListeners) {
             listener.onTemporaryTopicCreate(result);
         }
 
@@ -272,7 +266,7 @@ public class PooledSession implements Session, TopicSession, QueueSession, XASes
 
     @Override
     public XAResource getXAResource() {
-        SessionHolder session = safeGetSessionHolder();
+        PooledSessionHolder session = safeGetSessionHolder();
 
         if (session.getSession() instanceof XASession) {
             return ((XASession) session.getSession()).getXAResource();
@@ -288,7 +282,7 @@ public class PooledSession implements Session, TopicSession, QueueSession, XASes
 
     @Override
     public void run() {
-        SessionHolder session = safeGetSessionHolder();
+        PooledSessionHolder session = safeGetSessionHolder();
         if (session != null) {
             session.getSession().run();
         }
@@ -404,17 +398,17 @@ public class PooledSession implements Session, TopicSession, QueueSession, XASes
     // -------------------------------------------------------------------------
     @Override
     public MessageProducer createProducer(Destination destination) throws JMSException {
-        return new PooledMessageProducer(safeGetSessionHolder().getConnection(), getMessageProducer(destination), destination);
+        return new JmsPoolMessageProducer(safeGetSessionHolder().getConnection(), getMessageProducer(destination), destination);
     }
 
     @Override
     public QueueSender createSender(Queue queue) throws JMSException {
-        return new PooledQueueSender(safeGetSessionHolder().getConnection(), getQueueSender(queue), queue);
+        return new JmsPoolQueueSender(safeGetSessionHolder().getConnection(), getQueueSender(queue), queue);
     }
 
     @Override
     public TopicPublisher createPublisher(Topic topic) throws JMSException {
-        return new PooledTopicPublisher(safeGetSessionHolder().getConnection(), getTopicPublisher(topic), topic);
+        return new JmsPoolTopicPublisher(safeGetSessionHolder().getConnection(), getTopicPublisher(topic), topic);
     }
 
     public Session getInternalSession() throws IllegalStateException {
@@ -471,26 +465,34 @@ public class PooledSession implements Session, TopicSession, QueueSession, XASes
 
     private QueueBrowser addQueueBrowser(QueueBrowser browser) {
         browsers.add(browser);
-        return new PooledQueueBrowser(this, browser);
+        return new JmsPoolQueueBrowser(this, browser);
     }
 
     private MessageConsumer addConsumer(MessageConsumer consumer) {
         consumers.add(consumer);
-        return new PooledMessageConsumer(this, consumer);
+        return new JmsPoolMessageConsumer(this, consumer);
     }
 
     private TopicSubscriber addTopicSubscriber(TopicSubscriber subscriber) {
         consumers.add(subscriber);
-        return new PooledTopicSubscriber(this, subscriber);
+        return new JmsPoolTopicSubscriber(this, subscriber);
     }
 
     private QueueReceiver addQueueReceiver(QueueReceiver receiver) {
         consumers.add(receiver);
-        return new PooledQueueReceiver(this, receiver);
+        return new JmsPoolQueueReceiver(this, receiver);
     }
 
     public void setIsXa(boolean isXa) {
         this.isXa = isXa;
+    }
+
+    public boolean isIgnoreClose() {
+        return ignoreClose;
+    }
+
+    public void setIgnoreClose(boolean ignoreClose) {
+        this.ignoreClose = ignoreClose;
     }
 
     @Override
@@ -524,8 +526,8 @@ public class PooledSession implements Session, TopicSession, QueueSession, XASes
         browsers.remove(browser);
     }
 
-    private SessionHolder safeGetSessionHolder() {
-        SessionHolder sessionHolder = this.sessionHolder;
+    private PooledSessionHolder safeGetSessionHolder() {
+        PooledSessionHolder sessionHolder = this.sessionHolder;
         if (sessionHolder == null) {
             throw new IllegalStateException("The session has already been closed");
         }

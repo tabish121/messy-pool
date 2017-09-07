@@ -35,7 +35,6 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
-import org.messaginghub.messy.jms.PooledConnectionFactory;
 
 /**
  * Test of lingering temporary destinations on pooled connections when the
@@ -52,7 +51,7 @@ public class PooledConnectionTempDestCleanupTest extends JmsPoolTestSupport {
     protected Connection directConn1;
     protected Connection directConn2;
 
-    protected PooledConnectionFactory pooledConnFact;
+    protected JmsPoolConnectionFactory pooledConnFact;
     protected Connection pooledConn1;
     protected Connection pooledConn2;
 
@@ -73,9 +72,9 @@ public class PooledConnectionTempDestCleanupTest extends JmsPoolTestSupport {
         brokerService.start();
         brokerService.waitUntilStarted();
 
-        // Create the ActiveMQConnectionFactory and the PooledConnectionFactory.
+        // Create the ActiveMQConnectionFactory and the JmsPoolConnectionFactory.
         directConnFact = new ActiveMQConnectionFactory(getBrokerConnectionURI());
-        pooledConnFact = new PooledConnectionFactory();
+        pooledConnFact = new JmsPoolConnectionFactory();
         pooledConnFact.setConnectionFactory(directConnFact);
 
         // Prepare the connections

@@ -24,7 +24,7 @@ import javax.jms.IllegalStateException;
 
 import org.apache.activemq.ActiveMQConnectionFactory;
 import org.junit.Test;
-import org.messaginghub.messy.jms.PooledConnectionFactory;
+import org.messaginghub.messy.jms.JmsPoolConnectionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,7 +62,7 @@ public class PooledConnectionTest extends JmsPoolTestSupport {
             LOG.error("Repeated calls to ActiveMQConnection.setClientID(\"newID\") caused " + ise.getMessage());
             fail("Repeated calls to ActiveMQConnection.setClientID(\"newID\") caused " + ise.getMessage());
         } finally {
-            ((PooledConnectionFactory) cf).stop();
+            ((JmsPoolConnectionFactory) cf).stop();
         }
 
         // 2nd test: call setClientID() twice with different IDs
@@ -78,7 +78,7 @@ public class PooledConnectionTest extends JmsPoolTestSupport {
             LOG.debug("Correctly received " + ise);
         } finally {
             conn.close();
-            ((PooledConnectionFactory) cf).stop();
+            ((JmsPoolConnectionFactory) cf).stop();
         }
 
         // 3rd test: try to call setClientID() after start()
@@ -93,14 +93,14 @@ public class PooledConnectionTest extends JmsPoolTestSupport {
             LOG.debug("Correctly received " + ise);
         } finally {
             conn.close();
-            ((PooledConnectionFactory) cf).stop();
+            ((JmsPoolConnectionFactory) cf).stop();
         }
 
         LOG.debug("Test finished.");
     }
 
     protected ConnectionFactory createPooledConnectionFactory() {
-        PooledConnectionFactory cf = new PooledConnectionFactory();
+        JmsPoolConnectionFactory cf = new JmsPoolConnectionFactory();
         cf.setConnectionFactory(new ActiveMQConnectionFactory(
             "vm://localhost?broker.persistent=false&broker.useJmx=false&broker.schedulerSupport=false"));
         cf.setMaxConnections(1);

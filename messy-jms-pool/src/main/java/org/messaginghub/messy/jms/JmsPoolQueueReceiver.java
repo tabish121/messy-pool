@@ -21,9 +21,9 @@ import javax.jms.Queue;
 import javax.jms.QueueReceiver;
 
 /**
- * A {@link QueueReceiver} which was created by {@link PooledSession}.
+ * A {@link QueueReceiver} which was created by {@link JmsPoolSession}.
  */
-public class PooledQueueReceiver extends PooledMessageConsumer implements QueueReceiver {
+public class JmsPoolQueueReceiver extends JmsPoolMessageConsumer implements QueueReceiver {
 
     /**
      * Wraps the QueueReceiver.
@@ -33,7 +33,7 @@ public class PooledQueueReceiver extends PooledMessageConsumer implements QueueR
      * @param delegate
      * 		the created QueueReceiver to wrap.
      */
-    public PooledQueueReceiver(PooledSession session, QueueReceiver delegate) {
+    public JmsPoolQueueReceiver(JmsPoolSession session, QueueReceiver delegate) {
         super(session, delegate);
     }
 

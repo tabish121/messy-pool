@@ -25,12 +25,14 @@ import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.MessageProducer;
 
+import org.messaginghub.messy.jms.pool.PooledConnection;
+
 /**
  * A pooled {@link MessageProducer}
  */
-public class PooledMessageProducer implements MessageProducer {
+public class JmsPoolMessageProducer implements MessageProducer {
 
-    private final ConnectionPool connection;
+    private final PooledConnection connection;
     private final MessageProducer messageProducer;
     private final Destination destination;
 
@@ -44,7 +46,7 @@ public class PooledMessageProducer implements MessageProducer {
     private long timeToLive;
     private long deliveryDelay;
 
-    public PooledMessageProducer(ConnectionPool connection, MessageProducer messageProducer, Destination destination) throws JMSException {
+    public JmsPoolMessageProducer(PooledConnection connection, MessageProducer messageProducer, Destination destination) throws JMSException {
         this.messageProducer = messageProducer;
         this.destination = destination;
         this.connection = connection;

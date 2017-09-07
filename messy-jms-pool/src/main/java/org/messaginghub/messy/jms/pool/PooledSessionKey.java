@@ -14,19 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.messaginghub.messy.jms;
+package org.messaginghub.messy.jms.pool;
 
 /**
  * A cache key for the session details used to locate PooledSession intances.
  */
-public class SessionKey {
+public final class PooledSessionKey {
 
     private final boolean transacted;
     private final int ackMode;
 
     private int hash;
 
-    public SessionKey(boolean transacted, int ackMode) {
+    public PooledSessionKey(boolean transacted, int ackMode) {
         this.transacted = transacted;
         this.ackMode = ackMode;
         this.hash = ackMode;
@@ -66,7 +66,7 @@ public class SessionKey {
             return false;
         }
 
-        SessionKey other = (SessionKey) obj;
+        PooledSessionKey other = (PooledSessionKey) obj;
         if (hash != other.hash) {
             return false;
         }

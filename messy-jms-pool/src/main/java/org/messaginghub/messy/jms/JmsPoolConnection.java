@@ -37,6 +37,8 @@ import javax.jms.Topic;
 import javax.jms.TopicConnection;
 import javax.jms.TopicSession;
 
+import org.messaginghub.messy.jms.pool.PooledConnection;
+import org.messaginghub.messy.jms.pool.PooledSessionKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,19 +48,17 @@ import org.slf4j.LoggerFactory;
  * its reference to the ConnectionPool backing it.
  *
  * <b>NOTE</b> this implementation is only intended for use when sending
- * messages. It does not deal with pooling of consumers; for that look at a
- * library like <a href="http://jencks.org/">Jencks</a> such as in <a
- * href="http://jencks.org/Message+Driven+POJOs">this example</a>
- *
+ * messages. It does not deal with pooling of consumers.
  */
-public class PooledConnection implements TopicConnection, QueueConnection, PooledSessionEventListener {
-    private static final transient Logger LOG = LoggerFactory.getLogger(PooledConnection.class);
+public class JmsPoolConnection implements TopicConnection, QueueConnection, JmsPoolSessionEventListener {
 
-    protected ConnectionPool pool;
+    private static final transient Logger LOG = LoggerFactory.getLogger(JmsPoolConnection.class);
+
+    protected PooledConnection pool;
     private volatile boolean stopped;
     private final List<TemporaryQueue> connTempQueues = new CopyOnWriteArrayList<TemporaryQueue>();
     private final List<TemporaryTopic> connTempTopics = new CopyOnWriteArrayList<TemporaryTopic>();
-    private final List<PooledSession> loanedSessions = new CopyOnWriteArrayList<PooledSession>();
+    private final List<JmsPoolSession> loanedSessions = new CopyOnWriteArrayList<JmsPoolSession>();
 
     /**
      * Creates a new PooledConnection instance that uses the given ConnectionPool to create
@@ -68,7 +68,7 @@ public class PooledConnection implements TopicConnection, QueueConnection, Poole
      * @param pool
      *      The connection and pool manager backing this proxy connection object.
      */
-    public PooledConnection(ConnectionPool pool) {
+    public JmsPoolConnection(PooledConnection pool) {
         this.pool = pool;
     }
 
@@ -77,8 +77,8 @@ public class PooledConnection implements TopicConnection, QueueConnection, Poole
      *
      * @return a new PooledConnection instance.
      */
-    public PooledConnection newInstance() {
-        return new PooledConnection(pool);
+    public JmsPoolConnection newInstance() {
+        return new JmsPoolConnection(pool);
     }
 
     @Override
@@ -188,7 +188,7 @@ public class PooledConnection implements TopicConnection, QueueConnection, Poole
 
     @Override
     public Session createSession(boolean transacted, int ackMode) throws JMSException {
-        PooledSession result = (PooledSession) pool.createSession(transacted, ackMode);
+        JmsPoolSession result = (JmsPoolSession) pool.createSession(transacted, ackMode);
 
         // Store the session so we can close the sessions that this PooledConnection
         // created in order to ensure that consumers etc are closed per the JMS contract.
@@ -214,7 +214,7 @@ public class PooledConnection implements TopicConnection, QueueConnection, Poole
     }
 
     @Override
-    public void onSessionClosed(PooledSession session) {
+    public void onSessionClosed(JmsPoolSession session) {
         if (session != null) {
             this.loanedSessions.remove(session);
         }
@@ -231,7 +231,7 @@ public class PooledConnection implements TopicConnection, QueueConnection, Poole
         }
     }
 
-    protected Session createSession(SessionKey key) throws JMSException {
+    protected Session createSession(PooledSessionKey key) throws JMSException {
         return getConnection().createSession(key.isTransacted(), key.getAckMode());
     }
 
@@ -276,7 +276,7 @@ public class PooledConnection implements TopicConnection, QueueConnection, Poole
      */
     protected void cleanupAllLoanedSessions() {
 
-        for (PooledSession session : loanedSessions) {
+        for (JmsPoolSession session : loanedSessions) {
             try {
                 session.close();
             } catch (JMSException ex) {

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.messaginghub.messy.jms;
+package org.messaginghub.messy.jms.pool;
 
 import javax.jms.JMSException;
 import javax.jms.MessageProducer;
@@ -30,15 +30,15 @@ import javax.jms.TopicSession;
  * anonymous producer used for all MessageProducer instances created
  * from this pooled session when enabled.
  */
-public class SessionHolder {
+public final class PooledSessionHolder {
 
-    private final ConnectionPool connection;
+    private final PooledConnection connection;
     private final Session session;
     private MessageProducer producer;
     private TopicPublisher publisher;
     private QueueSender sender;
 
-    public SessionHolder(ConnectionPool connection, Session session) {
+    public PooledSessionHolder(PooledConnection connection, Session session) {
         this.connection = connection;
         this.session = session;
     }
@@ -93,7 +93,7 @@ public class SessionHolder {
         return sender;
     }
 
-    public ConnectionPool getConnection() {
+    public PooledConnection getConnection() {
         return connection;
     }
 

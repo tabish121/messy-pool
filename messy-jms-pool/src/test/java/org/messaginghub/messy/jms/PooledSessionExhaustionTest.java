@@ -40,7 +40,7 @@ import org.apache.log4j.Logger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.messaginghub.messy.jms.PooledConnectionFactory;
+import org.messaginghub.messy.jms.JmsPoolConnectionFactory;
 
 public class PooledSessionExhaustionTest extends JmsPoolTestSupport {
 
@@ -50,7 +50,7 @@ public class PooledSessionExhaustionTest extends JmsPoolTestSupport {
     private static final Logger LOG = Logger.getLogger(PooledSessionExhaustionTest.class);
 
     private ActiveMQConnectionFactory factory;
-    private PooledConnectionFactory pooledFactory;
+    private JmsPoolConnectionFactory pooledFactory;
     private String connectionUri;
     private int numReceived = 0;
     private final List<Exception> exceptionList = new ArrayList<Exception>();
@@ -69,7 +69,7 @@ public class PooledSessionExhaustionTest extends JmsPoolTestSupport {
         brokerService.start();
         connectionUri = connector.getPublishableConnectString();
         factory = new ActiveMQConnectionFactory(connectionUri);
-        pooledFactory = new PooledConnectionFactory();
+        pooledFactory = new JmsPoolConnectionFactory();
         pooledFactory.setConnectionFactory(factory);
         pooledFactory.setMaxConnections(1);
         pooledFactory.setBlockIfSessionPoolIsFull(false);

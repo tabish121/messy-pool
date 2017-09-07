@@ -37,15 +37,15 @@ import org.apache.activemq.broker.TransportConnector;
 import org.apache.activemq.command.ActiveMQTopic;
 import org.junit.After;
 import org.junit.Test;
-import org.messaginghub.messy.jms.PooledConnection;
-import org.messaginghub.messy.jms.PooledConnectionFactory;
+import org.messaginghub.messy.jms.JmsPoolConnection;
+import org.messaginghub.messy.jms.JmsPoolConnectionFactory;
 import org.messaginghub.messy.jms.util.SocketProxy;
 import org.messaginghub.messy.jms.util.Wait;
 
 public class PooledTopicPublisherTest extends JmsPoolTestSupport {
 
     private TopicConnection connection;
-    private PooledConnectionFactory pcf;
+    private JmsPoolConnectionFactory pcf;
 
     @Override
     @After
@@ -69,7 +69,7 @@ public class PooledTopicPublisherTest extends JmsPoolTestSupport {
     @Test(timeout = 60000)
     public void testPooledConnectionFactory() throws Exception {
         ActiveMQTopic topic = new ActiveMQTopic("test");
-        pcf = new PooledConnectionFactory();
+        pcf = new JmsPoolConnectionFactory();
         pcf.setConnectionFactory(new ActiveMQConnectionFactory(
             "vm://test?broker.persistent=false&broker.useJmx=false"));
 
@@ -81,7 +81,7 @@ public class PooledTopicPublisherTest extends JmsPoolTestSupport {
 
     @Test(timeout = 60000)
     public void testSetGetExceptionListener() throws Exception {
-        pcf = new PooledConnectionFactory();
+        pcf = new JmsPoolConnectionFactory();
         pcf.setConnectionFactory(new ActiveMQConnectionFactory(
             "vm://test?broker.persistent=false&broker.useJmx=false"));
 
@@ -108,11 +108,11 @@ public class PooledTopicPublisherTest extends JmsPoolTestSupport {
 
         SocketProxy proxy = new SocketProxy(networkConnector.getConnectUri());
 
-        pcf = new PooledConnectionFactory();
+        pcf = new JmsPoolConnectionFactory();
         String uri = proxy.getUrl().toString() + "?trace=true&wireFormat.maxInactivityDuration=500&wireFormat.maxInactivityDurationInitalDelay=500";
         pcf.setConnectionFactory(new ActiveMQConnectionFactory(uri));
 
-        PooledConnection conn =  (PooledConnection) pcf.createConnection();
+        JmsPoolConnection conn =  (JmsPoolConnection) pcf.createConnection();
         Connection amq = conn.getConnection();
         assertNotNull(amq);
         final CountDownLatch gotException = new CountDownLatch(1);

@@ -28,8 +28,6 @@ import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.activemq.broker.BrokerService;
 import org.junit.Before;
 import org.junit.Test;
-import org.messaginghub.messy.jms.PooledConnection;
-import org.messaginghub.messy.jms.PooledConnectionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,7 +54,7 @@ public class PooledConnectionBrokenConnectionFilterTest extends JmsPoolTestSuppo
     public void demo() throws JMSException, InterruptedException {
         final CountDownLatch latch = new CountDownLatch(1);
         final AtomicBoolean done = new AtomicBoolean(false);
-        final PooledConnectionFactory pooled = new PooledConnectionFactory();
+        final JmsPoolConnectionFactory pooled = new JmsPoolConnectionFactory();
         pooled.setConnectionFactory(new ActiveMQConnectionFactory("vm://localhost?create=false"));
 
         pooled.setMaxConnections(2);
@@ -68,7 +66,7 @@ public class PooledConnectionBrokenConnectionFilterTest extends JmsPoolTestSuppo
                 public void run() {
                     while (!done.get() && latch.getCount() > 0) {
                         try {
-                            final PooledConnection pooledConnection = (PooledConnection) pooled.createConnection();
+                            final JmsPoolConnection pooledConnection = (JmsPoolConnection) pooled.createConnection();
                             if (pooledConnection.getConnection() == null) {
                                 LOG.info("Found broken connection.");
                                 latch.countDown();

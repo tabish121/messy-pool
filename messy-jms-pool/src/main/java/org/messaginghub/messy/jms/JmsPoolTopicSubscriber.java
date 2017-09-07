@@ -21,9 +21,9 @@ import javax.jms.Topic;
 import javax.jms.TopicSubscriber;
 
 /**
- * A {@link TopicSubscriber} which was created by {@link PooledSession}.
+ * A {@link TopicSubscriber} which was created by {@link JmsPoolSession}.
  */
-public class PooledTopicSubscriber extends PooledMessageConsumer implements TopicSubscriber {
+public class JmsPoolTopicSubscriber extends JmsPoolMessageConsumer implements TopicSubscriber {
 
     /**
      * Wraps the TopicSubscriber.
@@ -33,7 +33,7 @@ public class PooledTopicSubscriber extends PooledMessageConsumer implements Topi
      * @param delegate
      * 		the created QueueBrowser to wrap.
      */
-    public PooledTopicSubscriber(PooledSession session, TopicSubscriber delegate) {
+    public JmsPoolTopicSubscriber(JmsPoolSession session, TopicSubscriber delegate) {
         super(session, delegate);
     }
 

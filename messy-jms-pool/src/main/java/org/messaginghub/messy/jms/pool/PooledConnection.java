@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.messaginghub.messy.jms;
+package org.messaginghub.messy.jms.pool;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -34,6 +34,8 @@ import org.apache.commons.pool2.PooledObject;
 import org.apache.commons.pool2.impl.DefaultPooledObject;
 import org.apache.commons.pool2.impl.GenericKeyedObjectPool;
 import org.apache.commons.pool2.impl.GenericKeyedObjectPoolConfig;
+import org.messaginghub.messy.jms.JmsPoolSession;
+import org.messaginghub.messy.jms.JmsPoolSessionEventListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,8 +47,9 @@ import org.slf4j.LoggerFactory;
  * that the temporary destinations of the managed Connection are purged when all references
  * to this ConnectionPool are released.
  */
-public class ConnectionPool implements ExceptionListener {
-    private static final transient Logger LOG = LoggerFactory.getLogger(ConnectionPool.class);
+public class PooledConnection implements ExceptionListener {
+
+    private static final transient Logger LOG = LoggerFactory.getLogger(PooledConnection.class);
 
     protected Connection connection;
     private int referenceCount;
@@ -60,12 +63,12 @@ public class ConnectionPool implements ExceptionListener {
     private int jmsMinorVersion = 1;
 
     private final AtomicBoolean started = new AtomicBoolean(false);
-    private final GenericKeyedObjectPool<SessionKey, SessionHolder> sessionPool;
-    private final List<PooledSession> loanedSessions = new CopyOnWriteArrayList<PooledSession>();
+    private final GenericKeyedObjectPool<PooledSessionKey, PooledSessionHolder> sessionPool;
+    private final List<JmsPoolSession> loanedSessions = new CopyOnWriteArrayList<JmsPoolSession>();
     private boolean reconnectOnException;
     private ExceptionListener parentExceptionListener;
 
-    public ConnectionPool(Connection connection) {
+    public PooledConnection(Connection connection) {
         final GenericKeyedObjectPoolConfig poolConfig = new GenericKeyedObjectPoolConfig();
         poolConfig.setJmxEnabled(false);
         this.connection = wrap(connection);
@@ -82,29 +85,29 @@ public class ConnectionPool implements ExceptionListener {
         } catch (JMSException ex) {}
 
         // Create our internal Pool of session instances.
-        this.sessionPool = new GenericKeyedObjectPool<SessionKey, SessionHolder>(
-            new KeyedPooledObjectFactory<SessionKey, SessionHolder>() {
+        this.sessionPool = new GenericKeyedObjectPool<PooledSessionKey, PooledSessionHolder>(
+            new KeyedPooledObjectFactory<PooledSessionKey, PooledSessionHolder>() {
                 @Override
-                public PooledObject<SessionHolder> makeObject(SessionKey sessionKey) throws Exception {
-                    return new DefaultPooledObject<SessionHolder>(new SessionHolder(ConnectionPool.this, makeSession(sessionKey)));
+                public PooledObject<PooledSessionHolder> makeObject(PooledSessionKey sessionKey) throws Exception {
+                    return new DefaultPooledObject<PooledSessionHolder>(new PooledSessionHolder(PooledConnection.this, makeSession(sessionKey)));
                 }
 
                 @Override
-                public void destroyObject(SessionKey sessionKey, PooledObject<SessionHolder> pooledObject) throws Exception {
+                public void destroyObject(PooledSessionKey sessionKey, PooledObject<PooledSessionHolder> pooledObject) throws Exception {
                     pooledObject.getObject().close();
                 }
 
                 @Override
-                public boolean validateObject(SessionKey sessionKey, PooledObject<SessionHolder> pooledObject) {
+                public boolean validateObject(PooledSessionKey sessionKey, PooledObject<PooledSessionHolder> pooledObject) {
                     return true;
                 }
 
                 @Override
-                public void activateObject(SessionKey sessionKey, PooledObject<SessionHolder> pooledObject) throws Exception {
+                public void activateObject(PooledSessionKey sessionKey, PooledObject<PooledSessionHolder> pooledObject) throws Exception {
                 }
 
                 @Override
-                public void passivateObject(SessionKey sessionKey, PooledObject<SessionHolder> pooledObject) throws Exception {
+                public void passivateObject(PooledSessionKey sessionKey, PooledObject<PooledSessionHolder> pooledObject) throws Exception {
                 }
             }, poolConfig
         );
@@ -115,7 +118,7 @@ public class ConnectionPool implements ExceptionListener {
         hasExpired = val;
     }
 
-    protected Session makeSession(SessionKey key) throws JMSException {
+    protected Session makeSession(PooledSessionKey key) throws JMSException {
         return connection.createSession(key.isTransacted(), key.getAckMode());
     }
 
@@ -145,11 +148,11 @@ public class ConnectionPool implements ExceptionListener {
     }
 
     public Session createSession(boolean transacted, int ackMode) throws JMSException {
-        SessionKey key = new SessionKey(transacted, ackMode);
-        PooledSession session;
+        PooledSessionKey key = new PooledSessionKey(transacted, ackMode);
+        JmsPoolSession session;
         try {
-            session = new PooledSession(key, sessionPool.borrowObject(key), sessionPool, key.isTransacted(), useAnonymousProducers);
-            session.addSessionEventListener(new PooledSessionEventListener() {
+            session = new JmsPoolSession(key, sessionPool.borrowObject(key), sessionPool, key.isTransacted(), useAnonymousProducers);
+            session.addSessionEventListener(new JmsPoolSessionEventListener() {
 
                 @Override
                 public void onTemporaryTopicCreate(TemporaryTopic tempTopic) {
@@ -160,8 +163,8 @@ public class ConnectionPool implements ExceptionListener {
                 }
 
                 @Override
-                public void onSessionClosed(PooledSession session) {
-                    ConnectionPool.this.loanedSessions.remove(session);
+                public void onSessionClosed(JmsPoolSession session) {
+                    PooledConnection.this.loanedSessions.remove(session);
                 }
             });
             this.loanedSessions.add(session);
@@ -202,7 +205,7 @@ public class ConnectionPool implements ExceptionListener {
             // have not been closed by the client before closing the connection.
             // These need to be closed so that all session's reflect the fact
             // that the parent Connection is closed.
-            for (PooledSession session : this.loanedSessions) {
+            for (JmsPoolSession session : this.loanedSessions) {
                 try {
                     session.close();
                 } catch (Exception e) {
@@ -393,11 +396,11 @@ public class ConnectionPool implements ExceptionListener {
         return false;
     }
 
-    ExceptionListener getParentExceptionListener() {
+    public ExceptionListener getParentExceptionListener() {
         return parentExceptionListener;
     }
 
-    void setParentExceptionListener(ExceptionListener parentExceptionListener) {
+    public void setParentExceptionListener(ExceptionListener parentExceptionListener) {
         this.parentExceptionListener = parentExceptionListener;
     }
 
@@ -416,11 +419,11 @@ public class ConnectionPool implements ExceptionListener {
         return "ConnectionPool[" + connection + "]";
     }
 
-    void checkClientJMSVersionSupport(int requiredMajor, int requiredMinor) throws JMSException {
+    public void checkClientJMSVersionSupport(int requiredMajor, int requiredMinor) throws JMSException {
         checkClientJMSVersionSupport(requiredMajor, requiredMinor, false);
     }
 
-    void checkClientJMSVersionSupport(int requiredMajor, int requiredMinor, boolean runtimeEx) throws JMSException {
+    public void checkClientJMSVersionSupport(int requiredMajor, int requiredMinor, boolean runtimeEx) throws JMSException {
         if (jmsMajorVersion >= requiredMajor && jmsMinorVersion >= requiredMinor) {
             return;
         }

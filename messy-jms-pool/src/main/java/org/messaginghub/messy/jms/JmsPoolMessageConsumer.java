@@ -22,11 +22,11 @@ import javax.jms.MessageConsumer;
 import javax.jms.MessageListener;
 
 /**
- * A {@link MessageConsumer} which was created by {@link PooledSession}.
+ * A {@link MessageConsumer} which was created by {@link JmsPoolSession}.
  */
-public class PooledMessageConsumer implements MessageConsumer {
+public class JmsPoolMessageConsumer implements MessageConsumer {
 
-    private final PooledSession session;
+    private final JmsPoolSession session;
     private final MessageConsumer delegate;
 
     /**
@@ -35,7 +35,7 @@ public class PooledMessageConsumer implements MessageConsumer {
      * @param session  the pooled session
      * @param delegate the created consumer to wrap
      */
-    PooledMessageConsumer(PooledSession session, MessageConsumer delegate) {
+    JmsPoolMessageConsumer(JmsPoolSession session, MessageConsumer delegate) {
         this.session = session;
         this.delegate = delegate;
     }

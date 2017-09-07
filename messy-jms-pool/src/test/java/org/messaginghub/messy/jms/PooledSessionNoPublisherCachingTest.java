@@ -31,16 +31,16 @@ import org.apache.activemq.broker.TransportConnector;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.messaginghub.messy.jms.PooledConnection;
-import org.messaginghub.messy.jms.PooledConnectionFactory;
-import org.messaginghub.messy.jms.PooledMessageProducer;
-import org.messaginghub.messy.jms.PooledQueueSender;
-import org.messaginghub.messy.jms.PooledTopicPublisher;
+import org.messaginghub.messy.jms.JmsPoolConnection;
+import org.messaginghub.messy.jms.JmsPoolConnectionFactory;
+import org.messaginghub.messy.jms.JmsPoolMessageProducer;
+import org.messaginghub.messy.jms.JmsPoolQueueSender;
+import org.messaginghub.messy.jms.JmsPoolTopicPublisher;
 
 public class PooledSessionNoPublisherCachingTest extends JmsPoolTestSupport {
 
     private ActiveMQConnectionFactory factory;
-    private PooledConnectionFactory pooledFactory;
+    private JmsPoolConnectionFactory pooledFactory;
     private String connectionUri;
 
     @Override
@@ -58,7 +58,7 @@ public class PooledSessionNoPublisherCachingTest extends JmsPoolTestSupport {
 
         connectionUri = connector.getPublishableConnectString();
         factory = new ActiveMQConnectionFactory(connectionUri);
-        pooledFactory = new PooledConnectionFactory();
+        pooledFactory = new JmsPoolConnectionFactory();
         pooledFactory.setConnectionFactory(factory);
         pooledFactory.setMaxConnections(1);
         pooledFactory.setBlockIfSessionPoolIsFull(false);
@@ -79,27 +79,27 @@ public class PooledSessionNoPublisherCachingTest extends JmsPoolTestSupport {
         
     @Test(timeout = 60000)
     public void testMessageProducersAreUnique() throws Exception {
-        PooledConnection connection = (PooledConnection) pooledFactory.createConnection();
+        JmsPoolConnection connection = (JmsPoolConnection) pooledFactory.createConnection();
         Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
 
         Queue queue1 = session.createTemporaryQueue();
         Queue queue2 = session.createTemporaryQueue();
 
-        PooledMessageProducer producer1 = (PooledMessageProducer) session.createProducer(queue1);
-        PooledMessageProducer producer2 = (PooledMessageProducer) session.createProducer(queue2);
+        JmsPoolMessageProducer producer1 = (JmsPoolMessageProducer) session.createProducer(queue1);
+        JmsPoolMessageProducer producer2 = (JmsPoolMessageProducer) session.createProducer(queue2);
 
         assertNotSame(producer1.getMessageProducer(), producer2.getMessageProducer());
     }
 
     @Test(timeout = 60000)
     public void testThrowsWhenDestinationGiven() throws Exception {
-        PooledConnection connection = (PooledConnection) pooledFactory.createConnection();
+        JmsPoolConnection connection = (JmsPoolConnection) pooledFactory.createConnection();
         Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
 
         Queue queue1 = session.createTemporaryQueue();
         Queue queue2 = session.createTemporaryQueue();
 
-        PooledMessageProducer producer = (PooledMessageProducer) session.createProducer(queue1);
+        JmsPoolMessageProducer producer = (JmsPoolMessageProducer) session.createProducer(queue1);
 
         try {
             producer.send(queue2, session.createTextMessage());
@@ -116,28 +116,28 @@ public class PooledSessionNoPublisherCachingTest extends JmsPoolTestSupport {
 
     @Test(timeout = 60000)
     public void testCreateTopicPublisher() throws Exception {
-        PooledConnection connection = (PooledConnection) pooledFactory.createConnection();
+        JmsPoolConnection connection = (JmsPoolConnection) pooledFactory.createConnection();
         TopicSession session = connection.createTopicSession(false, Session.AUTO_ACKNOWLEDGE);
 
         Topic topic1 = session.createTopic("Topic-1");
         Topic topic2 = session.createTopic("Topic-2");
 
-        PooledTopicPublisher publisher1 = (PooledTopicPublisher) session.createPublisher(topic1);
-        PooledTopicPublisher publisher2 = (PooledTopicPublisher) session.createPublisher(topic2);
+        JmsPoolTopicPublisher publisher1 = (JmsPoolTopicPublisher) session.createPublisher(topic1);
+        JmsPoolTopicPublisher publisher2 = (JmsPoolTopicPublisher) session.createPublisher(topic2);
 
         assertNotSame(publisher1.getMessageProducer(), publisher2.getMessageProducer());
     }
 
     @Test(timeout = 60000)
     public void testQueueSender() throws Exception {
-        PooledConnection connection = (PooledConnection) pooledFactory.createConnection();
+        JmsPoolConnection connection = (JmsPoolConnection) pooledFactory.createConnection();
         QueueSession session = connection.createQueueSession(false, Session.AUTO_ACKNOWLEDGE);
 
         Queue queue1 = session.createTemporaryQueue();
         Queue queue2 = session.createTemporaryQueue();
 
-        PooledQueueSender sender1 = (PooledQueueSender) session.createSender(queue1);
-        PooledQueueSender sender2 = (PooledQueueSender) session.createSender(queue2);
+        JmsPoolQueueSender sender1 = (JmsPoolQueueSender) session.createSender(queue1);
+        JmsPoolQueueSender sender2 = (JmsPoolQueueSender) session.createSender(queue2);
 
         assertNotSame(sender1.getMessageProducer(), sender2.getMessageProducer());
     }

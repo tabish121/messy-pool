@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.messaginghub.messy.jms;
+package org.messaginghub.messy.jms.pool;
 
 import javax.jms.Connection;
 import javax.jms.JMSException;
@@ -26,22 +26,24 @@ import javax.transaction.SystemException;
 import javax.transaction.TransactionManager;
 import javax.transaction.xa.XAResource;
 
+import org.messaginghub.messy.jms.JmsPoolSession;
+
 /**
  * An XA-aware connection pool. When a session is created and an xa transaction
  * is active, the session will automatically be enlisted in the current
  * transaction.
  */
-public class XaConnectionPool extends ConnectionPool {
+public class PooledXaConnection extends PooledConnection {
 
     private final TransactionManager transactionManager;
 
-    public XaConnectionPool(Connection connection, TransactionManager transactionManager) {
+    public PooledXaConnection(Connection connection, TransactionManager transactionManager) {
         super(connection);
         this.transactionManager = transactionManager;
     }
 
     @Override
-    protected Session makeSession(SessionKey key) throws JMSException {
+    protected Session makeSession(PooledSessionKey key) throws JMSException {
         return ((XAConnection) connection).createXASession();
     }
 
@@ -61,7 +63,7 @@ public class XaConnectionPool extends ConnectionPool {
                     ackMode = Session.AUTO_ACKNOWLEDGE;
                 }
             }
-            PooledSession session = (PooledSession) super.createSession(transacted, ackMode);
+            JmsPoolSession session = (JmsPoolSession) super.createSession(transacted, ackMode);
             if (isXa) {
                 session.setIgnoreClose(true);
                 session.setIsXa(true);
@@ -83,14 +85,15 @@ public class XaConnectionPool extends ConnectionPool {
         }
     }
 
-    protected XAResource createXaResource(PooledSession session) throws JMSException {
+    protected XAResource createXaResource(JmsPoolSession session) throws JMSException {
         return session.getXAResource();
     }
 
     protected class Synchronization implements javax.transaction.Synchronization {
-        private final PooledSession session;
 
-        private Synchronization(PooledSession session) {
+        private final JmsPoolSession session;
+
+        private Synchronization(JmsPoolSession session) {
             this.session = session;
         }
 

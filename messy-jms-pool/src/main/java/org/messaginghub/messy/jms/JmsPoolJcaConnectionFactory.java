@@ -17,28 +17,25 @@
 package org.messaginghub.messy.jms;
 
 import javax.jms.Connection;
-import javax.jms.JMSException;
-import javax.jms.XASession;
-import javax.transaction.TransactionManager;
-import javax.transaction.xa.XAResource;
 
-import org.apache.geronimo.transaction.manager.WrapperNamedXAResource;
+import org.messaginghub.messy.jms.pool.PooledConnection;
+import org.messaginghub.messy.jms.pool.PooledJcaConnection;
 
-public class JcaConnectionPool extends XaConnectionPool {
+public class JmsPoolJcaConnectionFactory extends JmsPoolXaConnectionFactory {
 
-    private final String name;
+    private static final long serialVersionUID = 2523244162197526011L;
 
-    public JcaConnectionPool(Connection connection, TransactionManager transactionManager, String name) {
-        super(connection, transactionManager);
+    private String name;
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
         this.name = name;
     }
 
-    @Override
-    protected XAResource createXaResource(PooledSession session) throws JMSException {
-        XAResource xares = ((XASession)session.getInternalSession()).getXAResource();
-        if (name != null) {
-            xares = new WrapperNamedXAResource(xares, name);
-        }
-        return xares;
+    protected PooledConnection createConnectionPool(Connection connection) {
+        return new PooledJcaConnection(connection, getTransactionManager(), getName());
     }
 }

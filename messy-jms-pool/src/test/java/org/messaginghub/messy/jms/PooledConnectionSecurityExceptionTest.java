@@ -46,8 +46,8 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
-import org.messaginghub.messy.jms.PooledConnection;
-import org.messaginghub.messy.jms.PooledConnectionFactory;
+import org.messaginghub.messy.jms.JmsPoolConnection;
+import org.messaginghub.messy.jms.JmsPoolConnectionFactory;
 import org.messaginghub.messy.jms.util.Wait;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,7 +64,7 @@ public class PooledConnectionSecurityExceptionTest {
     private BrokerService brokerService;
     private String connectionURI;
 
-    protected PooledConnectionFactory pooledConnFact;
+    protected JmsPoolConnectionFactory pooledConnFact;
 
     @Test
     public void testFailedConnectThenSucceeds() throws JMSException {
@@ -122,7 +122,7 @@ public class PooledConnectionSecurityExceptionTest {
     public void testFailureGetsNewConnectionOnRetry() throws Exception {
         pooledConnFact.setMaxConnections(1);
 
-        final PooledConnection connection1 = (PooledConnection) pooledConnFact.createConnection("invalid", "credentials");
+        final JmsPoolConnection connection1 = (JmsPoolConnection) pooledConnFact.createConnection("invalid", "credentials");
 
         try {
             connection1.start();
@@ -137,11 +137,11 @@ public class PooledConnectionSecurityExceptionTest {
             @Override
             public boolean isSatisfied() throws Exception {
                 return connection1.getConnection() !=
-                    ((PooledConnection) pooledConnFact.createConnection("invalid", "credentials")).getConnection();
+                    ((JmsPoolConnection) pooledConnFact.createConnection("invalid", "credentials")).getConnection();
             }
         }));
 
-        final PooledConnection connection2 = (PooledConnection) pooledConnFact.createConnection("invalid", "credentials");
+        final JmsPoolConnection connection2 = (JmsPoolConnection) pooledConnFact.createConnection("invalid", "credentials");
         assertNotSame(connection1.getConnection(), connection2.getConnection());
 
         try {
@@ -188,7 +188,7 @@ public class PooledConnectionSecurityExceptionTest {
         ActiveMQConnectionFactory cf = new ActiveMQConnectionFactory(
             "failover:(" + connectionURI + ")");
 
-        pooledConnFact = new PooledConnectionFactory();
+        pooledConnFact = new JmsPoolConnectionFactory();
         pooledConnFact.setConnectionFactory(cf);
         pooledConnFact.setMaxConnections(1);
 
@@ -215,11 +215,11 @@ public class PooledConnectionSecurityExceptionTest {
         ActiveMQConnectionFactory cf = new ActiveMQConnectionFactory(
             "failover:(" + connectionURI + "?trace=true)");
 
-        pooledConnFact = new PooledConnectionFactory();
+        pooledConnFact = new JmsPoolConnectionFactory();
         pooledConnFact.setConnectionFactory(cf);
         pooledConnFact.setMaxConnections(1);
 
-        final PooledConnection connection1 = (PooledConnection) pooledConnFact.createConnection("invalid", "credentials");
+        final JmsPoolConnection connection1 = (JmsPoolConnection) pooledConnFact.createConnection("invalid", "credentials");
 
         try {
             connection1.start();
@@ -235,11 +235,11 @@ public class PooledConnectionSecurityExceptionTest {
             @Override
             public boolean isSatisfied() throws Exception {
                 return connection1.getConnection() !=
-                          ((PooledConnection) pooledConnFact.createConnection("invalid", "credentials")).getConnection();
+                          ((JmsPoolConnection) pooledConnFact.createConnection("invalid", "credentials")).getConnection();
             }
         }));
 
-        final PooledConnection connection2 = (PooledConnection) pooledConnFact.createConnection("invalid", "credentials");
+        final JmsPoolConnection connection2 = (JmsPoolConnection) pooledConnFact.createConnection("invalid", "credentials");
         assertNotSame(connection1.getConnection(), connection2.getConnection());
 
         try {
@@ -289,7 +289,7 @@ public class PooledConnectionSecurityExceptionTest {
 
         // Create the ActiveMQConnectionFactory and the PooledConnectionFactory.
         ActiveMQConnectionFactory cf = new ActiveMQConnectionFactory(connectionURI);
-        pooledConnFact = new PooledConnectionFactory();
+        pooledConnFact = new JmsPoolConnectionFactory();
         pooledConnFact.setConnectionFactory(cf);
         pooledConnFact.setMaxConnections(1);
         pooledConnFact.setReconnectOnException(true);

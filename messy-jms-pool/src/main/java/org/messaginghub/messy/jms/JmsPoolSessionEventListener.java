@@ -16,23 +16,33 @@
  */
 package org.messaginghub.messy.jms;
 
-import javax.jms.Connection;
+import javax.jms.TemporaryQueue;
+import javax.jms.TemporaryTopic;
 
-public class JcaPooledConnectionFactory extends XaPooledConnectionFactory {
+public interface JmsPoolSessionEventListener {
 
-    private static final long serialVersionUID = 2523244162197526011L;
+    /**
+     * Called on successful creation of a new TemporaryQueue.
+     *
+     * @param tempQueue
+     *      The TemporaryQueue just created.
+     */
+    void onTemporaryQueueCreate(TemporaryQueue tempQueue);
 
-    private String name;
+    /**
+     * Called on successful creation of a new TemporaryTopic.
+     *
+     * @param tempTopic
+     *      The TemporaryTopic just created.
+     */
+    void onTemporaryTopicCreate(TemporaryTopic tempTopic);
 
-    public String getName() {
-        return name;
-    }
+    /**
+     * Called when the PooledSession is closed.
+     *
+     * @param session
+     *      The PooledSession that has been closed.
+     */
+    void onSessionClosed(JmsPoolSession session);
 
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    protected ConnectionPool createConnectionPool(Connection connection) {
-        return new JcaConnectionPool(connection, getTransactionManager(), getName());
-    }
 }

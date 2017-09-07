@@ -29,7 +29,7 @@ import org.apache.activemq.broker.TransportConnector;
 import org.apache.activemq.broker.region.RegionBroker;
 import org.junit.Before;
 import org.junit.Test;
-import org.messaginghub.messy.jms.PooledConnectionFactory;
+import org.messaginghub.messy.jms.JmsPoolConnectionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,7 +38,7 @@ public class PooledConnectionFactoryWithTemporaryDestinationsTest extends JmsPoo
     private static final Logger LOG = LoggerFactory.getLogger(PooledConnectionFactoryWithTemporaryDestinationsTest.class);
 
     private ActiveMQConnectionFactory factory;
-    private PooledConnectionFactory pooledFactory;
+    private JmsPoolConnectionFactory pooledFactory;
 
     @Override
     @Before
@@ -53,7 +53,7 @@ public class PooledConnectionFactoryWithTemporaryDestinationsTest extends JmsPoo
         TransportConnector connector = brokerService.addConnector("tcp://localhost:0");
         brokerService.start();
         factory = new ActiveMQConnectionFactory("mock:" + connector.getConnectUri() + "?closeAsync=false");
-        pooledFactory = new PooledConnectionFactory();
+        pooledFactory = new JmsPoolConnectionFactory();
         pooledFactory.setConnectionFactory(factory);
     }
 

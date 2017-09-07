@@ -23,11 +23,11 @@ import javax.jms.Queue;
 import javax.jms.QueueBrowser;
 
 /**
- * A {@link QueueBrowser} which was created by {@link PooledSession}.
+ * A {@link QueueBrowser} which was created by {@link JmsPoolSession}.
  */
-public class PooledQueueBrowser implements QueueBrowser {
+public class JmsPoolQueueBrowser implements QueueBrowser {
 
-    private final PooledSession session;
+    private final JmsPoolSession session;
     private final QueueBrowser delegate;
 
     /**
@@ -38,7 +38,7 @@ public class PooledQueueBrowser implements QueueBrowser {
      * @param delegate
      * 		the created QueueBrowser to wrap.
      */
-    public PooledQueueBrowser(PooledSession session, QueueBrowser delegate) {
+    public JmsPoolQueueBrowser(JmsPoolSession session, QueueBrowser delegate) {
         this.session = session;
         this.delegate = delegate;
     }

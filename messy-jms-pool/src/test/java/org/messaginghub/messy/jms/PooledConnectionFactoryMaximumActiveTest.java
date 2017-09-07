@@ -32,7 +32,7 @@ import javax.jms.Session;
 import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.log4j.Logger;
 import org.junit.Test;
-import org.messaginghub.messy.jms.PooledConnectionFactory;
+import org.messaginghub.messy.jms.JmsPoolConnectionFactory;
 
 /**
  * Checks the behavior of the PooledConnectionFactory when the maximum amount of sessions is being reached
@@ -65,7 +65,7 @@ public class PooledConnectionFactoryMaximumActiveTest extends JmsPoolTestSupport
         ActiveMQConnectionFactory amq = new ActiveMQConnectionFactory(
             "vm://broker1?marshal=false&broker.useJmx=false&broker.persistent=false");
 
-        PooledConnectionFactory cf = new PooledConnectionFactory();
+        JmsPoolConnectionFactory cf = new JmsPoolConnectionFactory();
         cf.setConnectionFactory(amq);
         cf.setMaxConnections(3);
         cf.setMaximumActiveSessionPerConnection(1);
