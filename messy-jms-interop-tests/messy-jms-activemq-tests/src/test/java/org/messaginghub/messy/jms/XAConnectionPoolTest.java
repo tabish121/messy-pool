@@ -54,8 +54,6 @@ import org.apache.activemq.ActiveMQXAConnectionFactory;
 import org.apache.activemq.ActiveMQXASession;
 import org.apache.activemq.command.ActiveMQTopic;
 import org.junit.Test;
-import org.messaginghub.messy.jms.PooledSession;
-import org.messaginghub.messy.jms.XaPooledConnectionFactory;
 
 public class XAConnectionPoolTest extends JmsPoolTestSupport {
 
@@ -391,12 +389,10 @@ public class XAConnectionPoolTest extends JmsPoolTestSupport {
             return connectionFactory.createXAConnection(userName, password);
         }
 
-        @Override
         public XAJMSContext createXAContext() {
             return null;
         }
 
-        @Override
         public XAJMSContext createXAContext(String userName, String password) {
             return null;
         }

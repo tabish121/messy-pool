@@ -44,6 +44,14 @@
       <artifactId>geronimo-jms_1.1_spec</artifactId>
     </dependency>
     <dependency>
+      <groupId>org.apache.geronimo.components</groupId>
+      <artifactId>geronimo-transaction</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.messaginghub.jms</groupId>
+      <artifactId>messy-jms-pool</artifactId>
+    </dependency>
+    <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
     </dependency>
