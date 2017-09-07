@@ -33,10 +33,11 @@ import javax.jms.JMSException;
 import javax.jms.Session;
 
 import org.apache.activemq.ActiveMQConnectionFactory;
-import org.apache.log4j.Logger;
 import org.junit.Before;
 import org.junit.Test;
 import org.messaginghub.messy.jms.util.Wait;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Checks the behavior of the PooledConnectionFactory when the maximum amount of sessions is being reached
@@ -45,7 +46,7 @@ import org.messaginghub.messy.jms.util.Wait;
  */
 public class PooledConnectionFactoryMaximumActiveTest extends JmsPoolTestSupport {
 
-    public final static Logger LOG = Logger.getLogger(PooledConnectionFactoryMaximumActiveTest.class);
+    public final static Logger LOG = LoggerFactory.getLogger(PooledConnectionFactoryMaximumActiveTest.class);
     public static Connection connection = null;
 
     private static ConcurrentMap<Integer, Session> sessions = new ConcurrentHashMap<Integer, Session>();
@@ -149,7 +150,7 @@ public class PooledConnectionFactoryMaximumActiveTest extends JmsPoolTestSupport
 
     static class SessionTakerAndReturner implements Callable<Boolean> {
 
-        public final static Logger TASK_LOG = Logger.getLogger(SessionTaker.class);
+        public final static Logger TASK_LOG = LoggerFactory.getLogger(SessionTaker.class);
 
         /**
          * @return true if session created, false otherwise
@@ -181,7 +182,7 @@ public class PooledConnectionFactoryMaximumActiveTest extends JmsPoolTestSupport
 
     static class SessionTaker implements Callable<Boolean> {
 
-        public final static Logger TASK_LOG = Logger.getLogger(SessionTaker.class);
+        public final static Logger TASK_LOG = LoggerFactory.getLogger(SessionTaker.class);
 
         /**
          * @return true if session created, false otherwise

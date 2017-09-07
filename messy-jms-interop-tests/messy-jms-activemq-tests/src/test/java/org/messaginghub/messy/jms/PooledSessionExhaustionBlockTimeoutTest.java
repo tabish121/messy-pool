@@ -38,15 +38,17 @@ import javax.jms.TextMessage;
 import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.broker.TransportConnector;
-import org.apache.log4j.Logger;
 import org.junit.After;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class PooledSessionExhaustionBlockTimeoutTest extends JmsPoolTestSupport {
+
+    private final Logger LOG = LoggerFactory.getLogger(PooledSessionExhaustionBlockTimeoutTest.class);
+
     private static final String QUEUE = "FOO";
     private static final int NUM_MESSAGES = 500;
-
-    private final Logger LOG = Logger.getLogger(getClass());
 
     private ActiveMQConnectionFactory factory;
     private JmsPoolConnectionFactory pooledFactory;

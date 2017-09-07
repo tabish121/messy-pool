@@ -18,12 +18,21 @@ package org.messaginghub.messy.jms;
 
 import static org.junit.Assert.fail;
 
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
 import javax.jms.IllegalStateException;
+import javax.jms.JMSException;
+import javax.jms.Session;
 
 import org.apache.activemq.ActiveMQConnectionFactory;
 import org.junit.Test;
+import org.messaginghub.messy.jms.util.Wait;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,7 +41,7 @@ import org.slf4j.LoggerFactory;
  */
 public class PooledConnectionTest extends JmsPoolTestSupport {
 
-    private final Logger LOG = LoggerFactory.getLogger(PooledConnectionTest.class);
+    private static final Logger LOG = LoggerFactory.getLogger(PooledConnectionTest.class);
 
     @Test(timeout = 60000)
     public void testSetClientIDTwiceWithSameID() throws Exception {
@@ -102,6 +111,107 @@ public class PooledConnectionTest extends JmsPoolTestSupport {
         }
 
         LOG.debug("Test finished.");
+    }
+
+    /**
+     * Tests the behavior of the sessionPool of the PooledConnectionFactory when
+     * maximum number of sessions are reached.
+     *
+     * @throws Exception
+     */
+    @Test(timeout = 60000)
+    public void testCreateSessionDoesNotBlockWhenNotConfiguredTo() throws Exception {
+        // using separate thread for testing so that we can interrupt the test
+        // if the call to get a new session blocks.
+
+        // start test runner thread
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        final Future<Boolean> result = executor.submit(new TestRunner());
+
+        boolean testPassed = Wait.waitFor(new Wait.Condition() {
+
+            @Override
+            public boolean isSatisfied() throws Exception {
+                return result.isDone() && result.get().booleanValue();
+            }
+        }, TimeUnit.SECONDS.toMillis(10), TimeUnit.MILLISECONDS.toMillis(50));
+
+        if (!testPassed) {
+            PooledConnectionFactoryTest.LOG.error("2nd call to createSession() " +
+                                                  "is blocking but should have returned an error instead.");
+            executor.shutdownNow();
+            fail("SessionPool inside PooledConnectionFactory is blocking if " +
+                 "limit is exceeded but should return an exception instead.");
+        }
+    }
+
+    static class TestRunner implements Callable<Boolean> {
+
+        private static final Logger TASK_LOG = LoggerFactory.getLogger(PooledConnectionTest.class);
+
+        /**
+         * @return true if test succeeded, false otherwise
+         */
+        @Override
+        public Boolean call() {
+
+            Connection conn = null;
+            Session one = null;
+
+            JmsPoolConnectionFactory cf = null;
+
+            // wait at most 5 seconds for the call to createSession
+            try {
+                ActiveMQConnectionFactory amq = new ActiveMQConnectionFactory(
+                    "vm://broker1?marshal=false&broker.persistent=false&broker.useJmx=false");
+                cf = new JmsPoolConnectionFactory();
+                cf.setConnectionFactory(amq);
+                cf.setMaxConnections(3);
+                cf.setMaximumActiveSessionPerConnection(1);
+                cf.setBlockIfSessionPoolIsFull(false);
+
+                conn = cf.createConnection();
+                one = conn.createSession(false, Session.AUTO_ACKNOWLEDGE);
+
+                Session two = null;
+                try {
+                    // this should raise an exception as we called setMaximumActive(1)
+                    two = conn.createSession(false, Session.AUTO_ACKNOWLEDGE);
+                    two.close();
+
+                    TASK_LOG.error("Expected JMSException wasn't thrown.");
+                    fail("seconds call to Connection.createSession() was supposed" +
+                         "to raise an JMSException as internal session pool" +
+                         "is exhausted. This did not happen and indiates a problem");
+                    return new Boolean(false);
+                } catch (JMSException ex) {
+                    if (ex.getCause().getClass() == java.util.NoSuchElementException.class) {
+                        // expected, ignore but log
+                        TASK_LOG.info("Caught expected " + ex);
+                    } else {
+                        TASK_LOG.error("Error trapped", ex);
+                        return new Boolean(false);
+                    }
+                } finally {
+                    if (one != null) {
+                        one.close();
+                    }
+                    if (conn != null) {
+                        conn.close();
+                    }
+                }
+            } catch (Exception ex) {
+                TASK_LOG.error(ex.getMessage());
+                return new Boolean(false);
+            } finally {
+                if (cf != null) {
+                    cf.stop();
+                }
+            }
+
+            // all good, test succeeded
+            return new Boolean(true);
+        }
     }
 
     protected ConnectionFactory createPooledConnectionFactory() {
