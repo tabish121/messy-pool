@@ -37,7 +37,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.messaginghub.messy.jms.util.Wait;
 
-public class PooledConnectionSessionCleanupTest extends JmsPoolTestSupport {
+public class PooledConnectionSessionCleanupTest extends ActiveMQJmsPoolTestSupport {
 
     protected ActiveMQConnectionFactory directConnFact;
     protected Connection directConn1;

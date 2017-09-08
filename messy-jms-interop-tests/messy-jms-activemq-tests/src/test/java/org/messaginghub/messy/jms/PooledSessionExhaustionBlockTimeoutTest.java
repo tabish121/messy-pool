@@ -43,7 +43,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class PooledSessionExhaustionBlockTimeoutTest extends JmsPoolTestSupport {
+public class PooledSessionExhaustionBlockTimeoutTest extends ActiveMQJmsPoolTestSupport {
 
     private final Logger LOG = LoggerFactory.getLogger(PooledSessionExhaustionBlockTimeoutTest.class);
 

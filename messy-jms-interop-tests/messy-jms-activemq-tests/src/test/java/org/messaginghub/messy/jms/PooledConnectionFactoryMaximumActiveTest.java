@@ -44,7 +44,7 @@ import org.slf4j.LoggerFactory;
  * (maximumActive). When using setBlockIfSessionPoolIsFull(true) on the ConnectionFactory, further requests for sessions
  * should block. If it does not block, its a bug.
  */
-public class PooledConnectionFactoryMaximumActiveTest extends JmsPoolTestSupport {
+public class PooledConnectionFactoryMaximumActiveTest extends ActiveMQJmsPoolTestSupport {
 
     public final static Logger LOG = LoggerFactory.getLogger(PooledConnectionFactoryMaximumActiveTest.class);
     public static Connection connection = null;

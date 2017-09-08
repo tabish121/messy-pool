@@ -55,7 +55,7 @@ import org.apache.activemq.ActiveMQXASession;
 import org.apache.activemq.command.ActiveMQTopic;
 import org.junit.Test;
 
-public class XAConnectionPoolTest extends JmsPoolTestSupport {
+public class XAConnectionPoolTest extends ActiveMQJmsPoolTestSupport {
 
     @Test(timeout = 60000)
     public void testAfterCompletionCanClose() throws Exception {

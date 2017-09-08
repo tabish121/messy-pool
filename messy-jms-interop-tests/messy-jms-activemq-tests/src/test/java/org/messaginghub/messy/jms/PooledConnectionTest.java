@@ -25,7 +25,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import javax.jms.Connection;
-import javax.jms.ConnectionFactory;
 import javax.jms.IllegalStateException;
 import javax.jms.JMSException;
 import javax.jms.Session;
@@ -39,7 +38,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Tests against the PooledConnection class.
  */
-public class PooledConnectionTest extends JmsPoolTestSupport {
+public class PooledConnectionTest extends ActiveMQJmsPoolTestSupport {
 
     private static final Logger LOG = LoggerFactory.getLogger(PooledConnectionTest.class);
 
@@ -49,7 +48,7 @@ public class PooledConnectionTest extends JmsPoolTestSupport {
 
         // test: call setClientID("newID") twice
         // this should be tolerated and not result in an exception
-        ConnectionFactory cf = createPooledConnectionFactory();
+        JmsPoolConnectionFactory cf = createPooledConnectionFactory();
         Connection conn = cf.createConnection();
         conn.setClientID("newID");
 
@@ -61,7 +60,7 @@ public class PooledConnectionTest extends JmsPoolTestSupport {
             LOG.error("Repeated calls to newID2.setClientID(\"newID\") caused " + ise.getMessage());
             fail("Repeated calls to newID2.setClientID(\"newID\") caused " + ise.getMessage());
         } finally {
-            ((JmsPoolConnectionFactory) cf).stop();
+            cf.stop();
         }
 
         LOG.debug("Test finished.");
@@ -71,7 +70,7 @@ public class PooledConnectionTest extends JmsPoolTestSupport {
     public void testSetClientIDTwiceWithDifferentID() throws Exception {
         LOG.debug("running testRepeatedSetClientIDCalls()");
 
-        ConnectionFactory cf = createPooledConnectionFactory();
+        JmsPoolConnectionFactory cf = createPooledConnectionFactory();
         Connection conn = cf.createConnection();
 
         // test: call setClientID() twice with different IDs
@@ -84,7 +83,7 @@ public class PooledConnectionTest extends JmsPoolTestSupport {
             LOG.debug("Correctly received " + ise);
         } finally {
             conn.close();
-            ((JmsPoolConnectionFactory) cf).stop();
+            cf.stop();
         }
 
         LOG.debug("Test finished.");
@@ -94,7 +93,7 @@ public class PooledConnectionTest extends JmsPoolTestSupport {
     public void testSetClientIDAfterConnectionStart() throws Exception {
         LOG.debug("running testRepeatedSetClientIDCalls()");
 
-        ConnectionFactory cf = createPooledConnectionFactory();
+        JmsPoolConnectionFactory cf = createPooledConnectionFactory();
         Connection conn = cf.createConnection();
 
         // test: try to call setClientID() after start()
@@ -107,7 +106,7 @@ public class PooledConnectionTest extends JmsPoolTestSupport {
             LOG.debug("Correctly received " + ise);
         } finally {
             conn.close();
-            ((JmsPoolConnectionFactory) cf).stop();
+            cf.stop();
         }
 
         LOG.debug("Test finished.");
@@ -212,14 +211,5 @@ public class PooledConnectionTest extends JmsPoolTestSupport {
             // all good, test succeeded
             return new Boolean(true);
         }
-    }
-
-    protected ConnectionFactory createPooledConnectionFactory() {
-        JmsPoolConnectionFactory cf = new JmsPoolConnectionFactory();
-        cf.setConnectionFactory(new ActiveMQConnectionFactory(
-            "vm://localhost?broker.persistent=false&broker.useJmx=false&broker.schedulerSupport=false"));
-        cf.setMaxConnections(1);
-        LOG.debug("ConnectionFactory initialized.");
-        return cf;
     }
 }

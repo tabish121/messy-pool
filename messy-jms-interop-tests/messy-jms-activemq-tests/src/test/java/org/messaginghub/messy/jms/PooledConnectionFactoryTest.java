@@ -52,7 +52,7 @@ import org.slf4j.LoggerFactory;
  * don't block. This test succeeds if an exception is returned and fails if the
  * call to getSession() blocks.
  */
-public class PooledConnectionFactoryTest extends JmsPoolTestSupport {
+public class PooledConnectionFactoryTest extends ActiveMQJmsPoolTestSupport {
 
     public final static Logger LOG = LoggerFactory.getLogger(PooledConnectionFactoryTest.class);
 

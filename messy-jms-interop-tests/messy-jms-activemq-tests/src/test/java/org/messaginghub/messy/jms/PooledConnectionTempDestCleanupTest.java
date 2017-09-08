@@ -42,7 +42,7 @@ import org.junit.rules.TestName;
  * PooledConnection does not delete the temporary destinations of another
  * PooledConnection that uses the same underlying ConnectionPool.
  */
-public class PooledConnectionTempDestCleanupTest extends JmsPoolTestSupport {
+public class PooledConnectionTempDestCleanupTest extends ActiveMQJmsPoolTestSupport {
 
     @Rule
     public TestName testName = new TestName();

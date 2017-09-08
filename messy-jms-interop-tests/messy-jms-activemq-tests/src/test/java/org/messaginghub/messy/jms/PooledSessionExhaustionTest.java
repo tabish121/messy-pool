@@ -42,7 +42,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class PooledSessionExhaustionTest extends JmsPoolTestSupport {
+public class PooledSessionExhaustionTest extends ActiveMQJmsPoolTestSupport {
 
     private final Logger LOG = LoggerFactory.getLogger(PooledSessionExhaustionTest.class);
 

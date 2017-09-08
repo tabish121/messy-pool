@@ -32,7 +32,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class PooledConnectionFactoryWithTemporaryDestinationsTest extends JmsPoolTestSupport {
+public class PooledConnectionFactoryWithTemporaryDestinationsTest extends ActiveMQJmsPoolTestSupport {
 
     private static final Logger LOG = LoggerFactory.getLogger(PooledConnectionFactoryWithTemporaryDestinationsTest.class);
 

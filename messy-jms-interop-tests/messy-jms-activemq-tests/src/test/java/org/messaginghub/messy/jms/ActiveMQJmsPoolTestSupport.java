@@ -22,6 +22,7 @@ import javax.jms.JMSException;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 
+import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.broker.jmx.BrokerViewMBean;
 import org.apache.activemq.broker.jmx.ConnectorViewMBean;
@@ -33,17 +34,22 @@ import org.junit.rules.TestName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class JmsPoolTestSupport {
+public class ActiveMQJmsPoolTestSupport {
 
     @Rule public TestName name = new TestName();
 
-    protected static final Logger LOG = LoggerFactory.getLogger(JmsPoolTestSupport.class);
+    protected static final Logger LOG = LoggerFactory.getLogger(ActiveMQJmsPoolTestSupport.class);
 
     protected BrokerService brokerService;
+    protected String connectionURI;
+    protected ActiveMQConnectionFactory amqFactory;
 
     @Before
     public void setUp() throws Exception {
         LOG.info("========== start " + getTestName() + " ==========");
+
+        connectionURI = createBroker();
+        amqFactory = new ActiveMQConnectionFactory(connectionURI);
     }
 
     @After
@@ -63,6 +69,27 @@ public class JmsPoolTestSupport {
 
     public String getTestName() {
         return name.getMethodName();
+    }
+
+    protected String createBroker() throws Exception {
+        brokerService = new BrokerService();
+        brokerService.setDeleteAllMessagesOnStartup(true);
+        brokerService.setPersistent(false);
+        brokerService.setUseJmx(false);
+        brokerService.setAdvisorySupport(false);
+        brokerService.setSchedulerSupport(false);
+        brokerService.start();
+        brokerService.waitUntilStarted();
+
+        return brokerService.getVmConnectorURI().toString();
+    }
+
+    protected JmsPoolConnectionFactory createPooledConnectionFactory() {
+        JmsPoolConnectionFactory cf = new JmsPoolConnectionFactory();
+        cf.setConnectionFactory(amqFactory);
+        cf.setMaxConnections(1);
+        LOG.debug("ConnectionFactory initialized.");
+        return cf;
     }
 
     protected BrokerViewMBean getProxyToBroker() throws MalformedObjectNameException, JMSException {

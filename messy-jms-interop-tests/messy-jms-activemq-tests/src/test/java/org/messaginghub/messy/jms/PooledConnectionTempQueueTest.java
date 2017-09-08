@@ -35,7 +35,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class PooledConnectionTempQueueTest extends JmsPoolTestSupport {
+public class PooledConnectionTempQueueTest extends ActiveMQJmsPoolTestSupport {
 
     private final Logger LOG = LoggerFactory.getLogger(PooledConnectionTempQueueTest.class);
 

@@ -37,7 +37,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-public class PooledSessionTest extends JmsPoolTestSupport {
+public class PooledSessionTest extends ActiveMQJmsPoolTestSupport {
 
     private ActiveMQConnectionFactory factory;
     private JmsPoolConnectionFactory pooledFactory;

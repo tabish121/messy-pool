@@ -32,7 +32,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-public class PooledSessionNoPublisherCachingTest extends JmsPoolTestSupport {
+public class PooledSessionNoPublisherCachingTest extends ActiveMQJmsPoolTestSupport {
 
     private ActiveMQConnectionFactory factory;
     private JmsPoolConnectionFactory pooledFactory;

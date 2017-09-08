@@ -37,7 +37,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-public class PooledConnectionFailoverTest extends JmsPoolTestSupport {
+public class PooledConnectionFailoverTest extends ActiveMQJmsPoolTestSupport {
 
     protected ActiveMQConnectionFactory directConnFact;
     protected JmsPoolConnectionFactory pooledConnFact;
@@ -46,8 +46,6 @@ public class PooledConnectionFailoverTest extends JmsPoolTestSupport {
     @Before
     public void setUp() throws java.lang.Exception {
         super.setUp();
-
-        String connectionURI = createBroker();
 
         // Create the ActiveMQConnectionFactory and the JmsPoolConnectionFactory.
         directConnFact = new ActiveMQConnectionFactory(connectionURI);
@@ -71,7 +69,6 @@ public class PooledConnectionFailoverTest extends JmsPoolTestSupport {
 
     @Test
     public void testConnectionFailures() throws Exception {
-
         final CountDownLatch failed = new CountDownLatch(1);
 
         Connection connection = pooledConnFact.createConnection();
@@ -112,7 +109,8 @@ public class PooledConnectionFailoverTest extends JmsPoolTestSupport {
         pooledConnFact.stop();
     }
 
-    private String createBroker() throws Exception {
+    @Override
+    protected String createBroker() throws Exception {
         brokerService = new BrokerService();
         brokerService.setBrokerName("PooledConnectionSessionCleanupTestBroker");
         brokerService.setUseJmx(true);

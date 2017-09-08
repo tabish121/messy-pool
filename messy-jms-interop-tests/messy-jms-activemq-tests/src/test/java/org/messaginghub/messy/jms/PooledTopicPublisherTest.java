@@ -30,7 +30,7 @@ import org.apache.activemq.command.ActiveMQTopic;
 import org.junit.After;
 import org.junit.Test;
 
-public class PooledTopicPublisherTest extends JmsPoolTestSupport {
+public class PooledTopicPublisherTest extends ActiveMQJmsPoolTestSupport {
 
     private TopicConnection connection;
     private JmsPoolConnectionFactory pcf;
