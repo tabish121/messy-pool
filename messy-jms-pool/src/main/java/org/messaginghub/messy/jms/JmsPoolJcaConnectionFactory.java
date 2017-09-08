@@ -35,7 +35,7 @@ public class JmsPoolJcaConnectionFactory extends JmsPoolXaConnectionFactory {
         this.name = name;
     }
 
-    protected PooledConnection createConnectionPool(Connection connection) {
+    protected PooledConnection createPooledConnection(Connection connection) {
         return new PooledJcaConnection(connection, getTransactionManager(), getName());
     }
 }

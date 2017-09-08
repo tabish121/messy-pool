@@ -19,7 +19,7 @@ package org.messaginghub.messy.jms.pool;
 /**
  * A cache key for the connection details
  */
-public final class PookedConnectionKey {
+public final class PooledConnectionKey {
 
     private final String userName;
     private final String password;
@@ -33,7 +33,7 @@ public final class PookedConnectionKey {
      * @param password
      * 		The password that this key represents
      */
-    public PookedConnectionKey(String userName, String password) {
+    public PooledConnectionKey(String userName, String password) {
         this.password = password;
         this.userName = userName;
         hash = 31;
@@ -76,7 +76,7 @@ public final class PookedConnectionKey {
             return false;
         }
 
-        PookedConnectionKey other = (PookedConnectionKey) obj;
+        PooledConnectionKey other = (PooledConnectionKey) obj;
         if (hash != other.hash) {
             return false;
         }

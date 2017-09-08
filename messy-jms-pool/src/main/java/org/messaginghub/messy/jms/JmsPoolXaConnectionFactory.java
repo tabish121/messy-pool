@@ -31,7 +31,7 @@ import javax.naming.NamingEnumeration;
 import javax.naming.spi.ObjectFactory;
 import javax.transaction.TransactionManager;
 
-import org.messaginghub.messy.jms.pool.PookedConnectionKey;
+import org.messaginghub.messy.jms.pool.PooledConnectionKey;
 import org.messaginghub.messy.jms.pool.PooledConnection;
 import org.messaginghub.messy.jms.pool.PooledXaConnection;
 import org.messaginghub.messy.jms.util.IntrospectionSupport;
@@ -78,7 +78,7 @@ public class JmsPoolXaConnectionFactory extends JmsPoolConnectionFactory impleme
     }
 
     @Override
-    protected Connection createConnection(PookedConnectionKey key) throws JMSException {
+    protected Connection createConnection(PooledConnectionKey key) throws JMSException {
         if (connectionFactory instanceof XAConnectionFactory) {
             if (key.getUserName() == null && key.getPassword() == null) {
                 return ((XAConnectionFactory) connectionFactory).createXAConnection();
@@ -91,7 +91,7 @@ public class JmsPoolXaConnectionFactory extends JmsPoolConnectionFactory impleme
     }
 
     @Override
-    protected PooledConnection createConnectionPool(Connection connection) {
+    protected PooledConnection createPooledConnection(Connection connection) {
         return new PooledXaConnection(connection, getTransactionManager());
     }
 

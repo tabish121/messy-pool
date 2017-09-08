@@ -35,8 +35,9 @@ import org.apache.commons.pool2.PooledObject;
 import org.apache.commons.pool2.impl.DefaultPooledObject;
 import org.apache.commons.pool2.impl.GenericKeyedObjectPool;
 import org.apache.commons.pool2.impl.GenericKeyedObjectPoolConfig;
-import org.messaginghub.messy.jms.pool.PookedConnectionKey;
 import org.messaginghub.messy.jms.pool.PooledConnection;
+import org.messaginghub.messy.jms.pool.PooledConnectionKey;
+import org.messaginghub.messy.jms.pool.PooledSessionKey;
 import org.messaginghub.messy.jms.util.JMSExceptionSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,7 +74,7 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
     private static final transient Logger LOG = LoggerFactory.getLogger(JmsPoolConnectionFactory.class);
 
     protected final AtomicBoolean stopped = new AtomicBoolean(false);
-    private GenericKeyedObjectPool<PookedConnectionKey, PooledConnection> connectionsPool;
+    private GenericKeyedObjectPool<PooledConnectionKey, PooledConnection> connectionsPool;
 
     protected Object connectionFactory;
 
@@ -94,13 +95,13 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
         if (this.connectionsPool == null) {
             final GenericKeyedObjectPoolConfig poolConfig = new GenericKeyedObjectPoolConfig();
             poolConfig.setJmxEnabled(false);
-            this.connectionsPool = new GenericKeyedObjectPool<PookedConnectionKey, PooledConnection>(
-                new KeyedPooledObjectFactory<PookedConnectionKey, PooledConnection>() {
+            this.connectionsPool = new GenericKeyedObjectPool<PooledConnectionKey, PooledConnection>(
+                new KeyedPooledObjectFactory<PooledConnectionKey, PooledConnection>() {
                     @Override
-                    public PooledObject<PooledConnection> makeObject(PookedConnectionKey connectionKey) throws Exception {
+                    public PooledObject<PooledConnection> makeObject(PooledConnectionKey connectionKey) throws Exception {
                         Connection delegate = createConnection(connectionKey);
 
-                        PooledConnection connection = createConnectionPool(delegate);
+                        PooledConnection connection = createPooledConnection(delegate);
                         connection.setIdleTimeout(getIdleTimeout());
                         connection.setExpiryTimeout(getExpiryTimeout());
                         connection.setMaximumActiveSessionPerConnection(getMaximumActiveSessionPerConnection());
@@ -119,7 +120,7 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
                     }
 
                     @Override
-                    public void destroyObject(PookedConnectionKey connectionKey, PooledObject<PooledConnection> pooledObject) throws Exception {
+                    public void destroyObject(PooledConnectionKey connectionKey, PooledObject<PooledConnection> pooledObject) throws Exception {
                         PooledConnection connection = pooledObject.getObject();
                         try {
                             LOG.trace("Destroying connection: {}", connection);
@@ -130,7 +131,7 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
                     }
 
                     @Override
-                    public boolean validateObject(PookedConnectionKey connectionKey, PooledObject<PooledConnection> pooledObject) {
+                    public boolean validateObject(PooledConnectionKey connectionKey, PooledObject<PooledConnection> pooledObject) {
                         PooledConnection connection = pooledObject.getObject();
                         if (connection != null && connection.expiredCheck()) {
                             LOG.trace("Connection has expired: {} and will be destroyed", connection);
@@ -141,11 +142,11 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
                     }
 
                     @Override
-                    public void activateObject(PookedConnectionKey connectionKey, PooledObject<PooledConnection> pooledObject) throws Exception {
+                    public void activateObject(PooledConnectionKey connectionKey, PooledObject<PooledConnection> pooledObject) throws Exception {
                     }
 
                     @Override
-                    public void passivateObject(PookedConnectionKey connectionKey, PooledObject<PooledConnection> pooledObject) throws Exception {
+                    public void passivateObject(PooledConnectionKey connectionKey, PooledObject<PooledConnection> pooledObject) throws Exception {
                     }
 
                 }, poolConfig);
@@ -192,6 +193,8 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
         }
     }
 
+    //----- JMS Connection Creation ---------------------------------------------//
+
     @Override
     public QueueConnection createQueueConnection() throws JMSException {
         return (QueueConnection) createConnection();
@@ -220,84 +223,6 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
     @Override
     public Connection createConnection(String userName, String password) throws JMSException {
         return createJmsPoolConnection(userName, password);
-    }
-
-    private synchronized JmsPoolConnection createJmsPoolConnection(String userName, String password) throws JMSException {
-        if (stopped.get()) {
-            LOG.debug("JmsPoolConnectionFactory is stopped, skip create new connection.");
-            return null;
-        }
-
-        PooledConnection connection = null;
-        PookedConnectionKey key = new PookedConnectionKey(userName, password);
-
-        // This will either return an existing non-expired ConnectionPool or it
-        // will create a new one to meet the demand.
-        if (getConnectionsPool().getNumIdle(key) < getMaxConnections()) {
-            try {
-                connectionsPool.addObject(key);
-                connection = mostRecentlyCreated.getAndSet(null);
-                connection.incrementReferenceCount();
-            } catch (Exception e) {
-                throw JMSExceptionSupport.create("Error while attempting to add new Connection to the pool", e);
-            }
-        } else {
-            try {
-                // We can race against other threads returning the connection when there is an
-                // expiration or idle timeout.  We keep pulling out ConnectionPool instances until
-                // we win and get a non-closed instance and then increment the reference count
-                // under lock to prevent another thread from triggering an expiration check and
-                // pulling the rug out from under us.
-                while (connection == null) {
-                    connection = connectionsPool.borrowObject(key);
-                    synchronized (connection) {
-                        if (connection.getConnection() != null) {
-                            connection.incrementReferenceCount();
-                            break;
-                        }
-
-                        // Return the bad one to the pool and let if get destroyed as normal.
-                        connectionsPool.returnObject(key, connection);
-                        connection = null;
-                    }
-                }
-            } catch (Exception e) {
-                throw JMSExceptionSupport.create("Error while attempting to retrieve a connection from the pool", e);
-            }
-
-            try {
-                connectionsPool.returnObject(key, connection);
-            } catch (Exception e) {
-                throw JMSExceptionSupport.create("Error when returning connection to the pool", e);
-            }
-        }
-
-        return newJmsPoolConnection(connection);
-    }
-
-    /**
-     * Allows subclasses to create an appropriate JmsPoolConnection wrapper for the newly
-     * create connection such as one that provides support for XA Transactions.
-     *
-     * @param connection
-     * 		The {@link PooledConnection} to wrap.
-     *
-     * @return a new {@link JmsPoolConnection} that wraps the given {@link PooledConnection}
-     */
-    protected JmsPoolConnection newJmsPoolConnection(PooledConnection connection) {
-        return new JmsPoolConnection(connection);
-    }
-
-    protected Connection createConnection(PookedConnectionKey key) throws JMSException {
-        if (connectionFactory instanceof ConnectionFactory) {
-            if (key.getUserName() == null && key.getPassword() == null) {
-                return ((ConnectionFactory) connectionFactory).createConnection();
-            } else {
-                return ((ConnectionFactory) connectionFactory).createConnection(key.getUserName(), key.getPassword());
-            }
-        } else {
-            throw new IllegalStateException("connectionFactory should implement javax.jms.ConnectionFactory");
-        }
     }
 
     //----- JMS Context Creation ---------------------------------------------//
@@ -542,16 +467,6 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
     }
 
     /**
-     * Gets the Pool of ConnectionPool instances which are keyed by different ConnectionKeys.
-     *
-     * @return this factories pool of ConnectionPool instances.
-     */
-    protected GenericKeyedObjectPool<PookedConnectionKey, PooledConnection> getConnectionsPool() {
-        initConnectionsPool();
-        return this.connectionsPool;
-    }
-
-    /**
      * Sets the number of milliseconds to sleep between runs of the idle Connection eviction thread.
      * When non-positive, no idle object eviction thread will be run, and Connections will only be
      * checked on borrow to determine if they have sat idle for too long or have failed for some
@@ -578,19 +493,6 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
      */
     public int getNumConnections() {
         return getConnectionsPool().getNumIdle();
-    }
-
-    /**
-     * Delegate that creates each instance of an ConnectionPool object.  Subclasses can override
-     * this method to customize the type of connection pool returned.
-     *
-     * @param connection
-     * 		The connection that is being added into the pool.
-     *
-     * @return instance of a new ConnectionPool.
-     */
-    protected PooledConnection createConnectionPool(Connection connection) {
-        return new PooledConnection(connection);
     }
 
     /**
@@ -637,6 +539,120 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
      */
     public void setReconnectOnException(boolean reconnectOnException) {
         this.reconnectOnException = reconnectOnException;
+    }
+
+    //----- Internal implementation ------------------------------------------//
+
+    /**
+     * Gets the Pool of ConnectionPool instances which are keyed by different ConnectionKeys.
+     *
+     * @return this factories pool of ConnectionPool instances.
+     */
+    protected GenericKeyedObjectPool<PooledConnectionKey, PooledConnection> getConnectionsPool() {
+        initConnectionsPool();
+        return this.connectionsPool;
+    }
+
+    /**
+     * Delegate that creates each instance of an ConnectionPool object.  Subclasses can override
+     * this method to customize the type of connection pool returned.
+     *
+     * @param connection
+     * 		The connection that is being added into the pool.
+     *
+     * @return instance of a new ConnectionPool.
+     */
+    protected PooledConnection createPooledConnection(Connection connection) {
+        return new PooledConnection(connection);
+    }
+
+    /**
+     * Allows subclasses to create an appropriate JmsPoolConnection wrapper for the newly
+     * create connection such as one that provides support for XA Transactions.
+     *
+     * @param connection
+     * 		The {@link PooledConnection} to wrap.
+     *
+     * @return a new {@link JmsPoolConnection} that wraps the given {@link PooledConnection}
+     */
+    protected JmsPoolConnection newPooledConnectionWrapper(PooledConnection connection) {
+        return new JmsPoolConnection(connection);
+    }
+
+    /**
+     * Given a {@link PooledConnectionKey} create a JMS {@link Connection} using the
+     * configuration from the key and the assigned JMS {@link ConnectionFactory} instance.
+     *
+     * @param key
+     * 		The {@link PooledSessionKey} to use as configuration for the new JMS Connection.
+     *
+     * @return a new JMS Connection created using the configured JMS ConnectionFactory.
+     *
+     * @throws JMSException if an error occurs while creating the new JMS Connection.
+     */
+    protected Connection createConnection(PooledConnectionKey key) throws JMSException {
+        if (connectionFactory instanceof ConnectionFactory) {
+            if (key.getUserName() == null && key.getPassword() == null) {
+                return ((ConnectionFactory) connectionFactory).createConnection();
+            } else {
+                return ((ConnectionFactory) connectionFactory).createConnection(key.getUserName(), key.getPassword());
+            }
+        } else {
+            throw new IllegalStateException("connectionFactory should implement javax.jms.ConnectionFactory");
+        }
+    }
+
+    private synchronized JmsPoolConnection createJmsPoolConnection(String userName, String password) throws JMSException {
+        if (stopped.get()) {
+            LOG.debug("JmsPoolConnectionFactory is stopped, skip create new connection.");
+            return null;
+        }
+
+        PooledConnection connection = null;
+        PooledConnectionKey key = new PooledConnectionKey(userName, password);
+
+        // This will either return an existing non-expired ConnectionPool or it
+        // will create a new one to meet the demand.
+        if (getConnectionsPool().getNumIdle(key) < getMaxConnections()) {
+            try {
+                connectionsPool.addObject(key);
+                connection = mostRecentlyCreated.getAndSet(null);
+                connection.incrementReferenceCount();
+            } catch (Exception e) {
+                throw JMSExceptionSupport.create("Error while attempting to add new Connection to the pool", e);
+            }
+        } else {
+            try {
+                // We can race against other threads returning the connection when there is an
+                // expiration or idle timeout.  We keep pulling out ConnectionPool instances until
+                // we win and get a non-closed instance and then increment the reference count
+                // under lock to prevent another thread from triggering an expiration check and
+                // pulling the rug out from under us.
+                while (connection == null) {
+                    connection = connectionsPool.borrowObject(key);
+                    synchronized (connection) {
+                        if (connection.getConnection() != null) {
+                            connection.incrementReferenceCount();
+                            break;
+                        }
+
+                        // Return the bad one to the pool and let if get destroyed as normal.
+                        connectionsPool.returnObject(key, connection);
+                        connection = null;
+                    }
+                }
+            } catch (Exception e) {
+                throw JMSExceptionSupport.create("Error while attempting to retrieve a connection from the pool", e);
+            }
+
+            try {
+                connectionsPool.returnObject(key, connection);
+            } catch (Exception e) {
+                throw JMSExceptionSupport.create("Error when returning connection to the pool", e);
+            }
+        }
+
+        return newPooledConnectionWrapper(connection);
     }
 
     //----- JNDI Operations --------------------------------------------------//

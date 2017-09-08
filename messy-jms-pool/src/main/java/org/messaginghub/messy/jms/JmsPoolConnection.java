@@ -54,7 +54,8 @@ public class JmsPoolConnection implements TopicConnection, QueueConnection, JmsP
 
     private static final transient Logger LOG = LoggerFactory.getLogger(JmsPoolConnection.class);
 
-    protected PooledConnection pool;
+    protected PooledConnection connection;
+
     private volatile boolean stopped;
     private final List<TemporaryQueue> connTempQueues = new CopyOnWriteArrayList<TemporaryQueue>();
     private final List<TemporaryTopic> connTempTopics = new CopyOnWriteArrayList<TemporaryTopic>();
@@ -69,7 +70,7 @@ public class JmsPoolConnection implements TopicConnection, QueueConnection, JmsP
      *      The connection and pool manager backing this proxy connection object.
      */
     public JmsPoolConnection(PooledConnection pool) {
-        this.pool = pool;
+        this.connection = pool;
     }
 
     /**
@@ -78,23 +79,23 @@ public class JmsPoolConnection implements TopicConnection, QueueConnection, JmsP
      * @return a new PooledConnection instance.
      */
     public JmsPoolConnection newInstance() {
-        return new JmsPoolConnection(pool);
+        return new JmsPoolConnection(connection);
     }
 
     @Override
     public void close() throws JMSException {
         this.cleanupConnectionTemporaryDestinations();
         this.cleanupAllLoanedSessions();
-        if (this.pool != null) {
-            this.pool.decrementReferenceCount();
-            this.pool = null;
+        if (this.connection != null) {
+            this.connection.decrementReferenceCount();
+            this.connection = null;
         }
     }
 
     @Override
     public void start() throws JMSException {
         assertNotClosed();
-        pool.start();
+        connection.start();
     }
 
     @Override
@@ -124,7 +125,7 @@ public class JmsPoolConnection implements TopicConnection, QueueConnection, JmsP
 
     @Override
     public ExceptionListener getExceptionListener() throws JMSException {
-        return pool.getParentExceptionListener();
+        return connection.getParentExceptionListener();
     }
 
     @Override
@@ -134,7 +135,7 @@ public class JmsPoolConnection implements TopicConnection, QueueConnection, JmsP
 
     @Override
     public void setExceptionListener(ExceptionListener exceptionListener) throws JMSException {
-        pool.setParentExceptionListener(exceptionListener);
+        connection.setParentExceptionListener(exceptionListener);
     }
 
     @Override
@@ -149,13 +150,13 @@ public class JmsPoolConnection implements TopicConnection, QueueConnection, JmsP
 
     @Override
     public ConnectionConsumer createSharedDurableConnectionConsumer(Topic topic, String subscriptionName, String selector, ServerSessionPool sessionPool, int maxMessages) throws JMSException {
-        // TODO - Handle JMS client that only supports 1.1
+        connection.checkClientJMSVersionSupport(2, 0);
         return getConnection().createSharedDurableConnectionConsumer(topic, subscriptionName, selector, sessionPool, maxMessages);
     }
 
     @Override
     public ConnectionConsumer createSharedConnectionConsumer(Topic topic, String subscriptionName, String selector, ServerSessionPool sessionPool, int maxMessages) throws JMSException {
-        // TODO - Handle JMS client that only supports 1.1
+        connection.checkClientJMSVersionSupport(2, 0);
         return getConnection().createSharedConnectionConsumer(topic, subscriptionName, selector, sessionPool, maxMessages);
     }
 
@@ -188,7 +189,7 @@ public class JmsPoolConnection implements TopicConnection, QueueConnection, JmsP
 
     @Override
     public Session createSession(boolean transacted, int ackMode) throws JMSException {
-        JmsPoolSession result = (JmsPoolSession) pool.createSession(transacted, ackMode);
+        JmsPoolSession result = (JmsPoolSession) connection.createSession(transacted, ackMode);
 
         // Store the session so we can close the sessions that this PooledConnection
         // created in order to ensure that consumers etc are closed per the JMS contract.
@@ -222,11 +223,11 @@ public class JmsPoolConnection implements TopicConnection, QueueConnection, JmsP
 
     public Connection getConnection() throws JMSException {
         assertNotClosed();
-        return pool.getConnection();
+        return connection.getConnection();
     }
 
     protected void assertNotClosed() throws javax.jms.IllegalStateException {
-        if (stopped || pool == null) {
+        if (stopped || connection == null) {
             throw new IllegalStateException("Connection closed");
         }
     }
@@ -237,7 +238,7 @@ public class JmsPoolConnection implements TopicConnection, QueueConnection, JmsP
 
     @Override
     public String toString() {
-        return "PooledConnection { " + pool + " }";
+        return "PooledConnection { " + connection + " }";
     }
 
     /**
@@ -249,7 +250,6 @@ public class JmsPoolConnection implements TopicConnection, QueueConnection, JmsP
      * of the temporary destinations created.
      */
     protected void cleanupConnectionTemporaryDestinations() {
-
         for (TemporaryQueue tempQueue : connTempQueues) {
             try {
                 tempQueue.delete();
@@ -275,7 +275,6 @@ public class JmsPoolConnection implements TopicConnection, QueueConnection, JmsP
      * all the resources that the Session had allocated for this PooledConnection.
      */
     protected void cleanupAllLoanedSessions() {
-
         for (JmsPoolSession session : loanedSessions) {
             try {
                 session.close();
@@ -283,6 +282,7 @@ public class JmsPoolConnection implements TopicConnection, QueueConnection, JmsP
                 LOG.info("failed to close laoned Session \"" + session + "\" on closing pooled connection: " + ex.getMessage());
             }
         }
+
         loanedSessions.clear();
     }
 
@@ -291,20 +291,20 @@ public class JmsPoolConnection implements TopicConnection, QueueConnection, JmsP
      *          currently loaned out to any client.
      */
     public int getNumSessions() {
-        return this.pool.getNumSessions();
+        return this.connection.getNumSessions();
     }
 
     /**
      * @return the number of Sessions that are currently checked out of this Connection's session pool.
      */
     public int getNumActiveSessions() {
-        return this.pool.getNumActiveSessions();
+        return this.connection.getNumActiveSessions();
     }
 
     /**
      * @return the number of Sessions that are idle in this Connection's sessions pool.
      */
     public int getNumtIdleSessions() {
-        return this.pool.getNumIdleSessions();
+        return this.connection.getNumIdleSessions();
     }
 }
