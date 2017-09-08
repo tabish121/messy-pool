@@ -22,7 +22,6 @@ import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
 import javax.jms.IllegalStateException;
 
-import org.apache.qpid.jms.JmsConnectionFactory;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,7 +29,7 @@ import org.slf4j.LoggerFactory;
 /**
  * A test against the PooledConnection class using QpidJMS
  */
-public class PooledConnectionTest extends JmsPoolTestSupport {
+public class PooledConnectionTest extends QpidJmsPoolTestSupport {
 
     private final Logger LOG = LoggerFactory.getLogger(PooledConnectionTest.class);
 
@@ -93,7 +92,7 @@ public class PooledConnectionTest extends JmsPoolTestSupport {
         try {
             conn.start();
             conn.setClientID("newID3");
-        fail("Calling setClientID() after start() mut raise a JMSException.");
+            fail("Calling setClientID() after start() mut raise a JMSException.");
         } catch (IllegalStateException ise) {
             LOG.debug("Correctly received " + ise);
         } finally {
@@ -102,13 +101,5 @@ public class PooledConnectionTest extends JmsPoolTestSupport {
         }
 
         LOG.debug("Test finished.");
-    }
-
-    protected ConnectionFactory createPooledConnectionFactory() {
-        JmsPoolConnectionFactory cf = new JmsPoolConnectionFactory();
-        cf.setConnectionFactory(new JmsConnectionFactory(connectionURI));
-        cf.setMaxConnections(1);
-        LOG.debug("ConnectionFactory initialized.");
-        return cf;
     }
 }

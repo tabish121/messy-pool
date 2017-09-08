@@ -26,6 +26,7 @@ import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.broker.jmx.BrokerViewMBean;
 import org.apache.activemq.broker.jmx.ConnectorViewMBean;
 import org.apache.activemq.broker.jmx.QueueViewMBean;
+import org.apache.qpid.jms.JmsConnectionFactory;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -33,20 +34,23 @@ import org.junit.rules.TestName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class JmsPoolTestSupport {
+public class QpidJmsPoolTestSupport {
 
     @Rule public TestName name = new TestName();
 
-    protected static final Logger LOG = LoggerFactory.getLogger(JmsPoolTestSupport.class);
+    protected static final Logger LOG = LoggerFactory.getLogger(QpidJmsPoolTestSupport.class);
 
     protected BrokerService brokerService;
     protected String connectionURI;
+    protected JmsConnectionFactory qpidJmsConnectionFactory;
 
     @Before
     public void setUp() throws Exception {
         LOG.info("========== start " + getTestName() + " ==========");
 
         brokerService = createBroker();
+
+        qpidJmsConnectionFactory = new JmsConnectionFactory(connectionURI);
     }
 
     @After
@@ -82,6 +86,14 @@ public class JmsPoolTestSupport {
         brokerService.waitUntilStarted();
 
         return brokerService;
+    }
+
+    protected JmsPoolConnectionFactory createPooledConnectionFactory() {
+        JmsPoolConnectionFactory cf = new JmsPoolConnectionFactory();
+        cf.setConnectionFactory(qpidJmsConnectionFactory);
+        cf.setMaxConnections(1);
+        LOG.debug("ConnectionFactory initialized.");
+        return cf;
     }
 
     protected BrokerViewMBean getProxyToBroker() throws MalformedObjectNameException, JMSException {
