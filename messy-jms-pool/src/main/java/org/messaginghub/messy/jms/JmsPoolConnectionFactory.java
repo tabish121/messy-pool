@@ -77,6 +77,7 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
     private GenericKeyedObjectPool<PooledConnectionKey, PooledConnection> connectionsPool;
 
     protected Object connectionFactory;
+    protected boolean jmsContextSupported;
 
     private int maximumActiveSessionPerConnection = 500;
     private int idleTimeout = 30 * 1000;
@@ -86,7 +87,6 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
     private boolean createConnectionOnStartup = true;
     private boolean useAnonymousProducers = true;
     private boolean reconnectOnException = true;
-    private boolean jmsContextsSupported;
 
     // Temporary value used to always fetch the result of makeObject.
     private final AtomicReference<PooledConnection> mostRecentlyCreated = new AtomicReference<PooledConnection>(null);
@@ -99,7 +99,7 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
                 new KeyedPooledObjectFactory<PooledConnectionKey, PooledConnection>() {
                     @Override
                     public PooledObject<PooledConnection> makeObject(PooledConnectionKey connectionKey) throws Exception {
-                        Connection delegate = createConnection(connectionKey);
+                        Connection delegate = createProviderConnection(connectionKey);
 
                         PooledConnection connection = createPooledConnection(delegate);
                         connection.setIdleTimeout(getIdleTimeout());
@@ -183,6 +183,7 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
             try {
                 toUse.getClass().getMethod("createContext", int.class);
                 LOG.info("Porovided ConnectionFactory is JMS 2.0+ capable.");
+                jmsContextSupported = true;
             } catch (NoSuchMethodException | SecurityException e) {
                 LOG.info("Porovided ConnectionFactory is not JMS 2.0+ capable.");
             }
@@ -249,16 +250,11 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
             return null;
         }
 
-        if (!jmsContextsSupported) {
+        if (!jmsContextSupported) {
             throw new JMSRuntimeException("Configured ConnectionFactory is not JMS 2+ capable");
         }
 
-        try {
-            JmsPoolConnection connection = createJmsPoolConnection(username, password);
-            return new JmsPoolContext(connection, sessionMode);
-        } catch (JMSException jmse) {
-            throw JMSExceptionSupport.createRuntimeException(jmse);
-        }
+        return createProviderContext(username, password, sessionMode);
     }
 
     //----- Setup and Close --------------------------------------------------//
@@ -590,7 +586,7 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
      *
      * @throws JMSException if an error occurs while creating the new JMS Connection.
      */
-    protected Connection createConnection(PooledConnectionKey key) throws JMSException {
+    protected Connection createProviderConnection(PooledConnectionKey key) throws JMSException {
         if (connectionFactory instanceof ConnectionFactory) {
             if (key.getUserName() == null && key.getPassword() == null) {
                 return ((ConnectionFactory) connectionFactory).createConnection();
@@ -599,6 +595,32 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
             }
         } else {
             throw new IllegalStateException("connectionFactory should implement javax.jms.ConnectionFactory");
+        }
+    }
+
+    /**
+     * Create a new {@link JMSContext} using the provided credentials and Session mode
+     *
+     * @param username
+     * 		The user name to use when creating the context.
+     * @param username
+     * 		The password to use when creating the context.
+     * @param sessionMode
+     * 		The session mode to use when creating the context.
+     *
+     * @return a new JMSContext created using the given configuration data..
+     *
+     * @throws JMSRuntimeException if an error occurs while creating the new JMS Context.
+     */
+    protected JMSContext createProviderContext(String username, String password, int sessionMode) {
+        if (connectionFactory instanceof ConnectionFactory) {
+            if (username == null && password == null) {
+                return ((ConnectionFactory) connectionFactory).createContext(sessionMode);
+            } else {
+                return ((ConnectionFactory) connectionFactory).createContext(username, password, sessionMode);
+            }
+        } else {
+            throw new javax.jms.IllegalStateRuntimeException("connectionFactory should implement javax.jms.ConnectionFactory");
         }
     }
 

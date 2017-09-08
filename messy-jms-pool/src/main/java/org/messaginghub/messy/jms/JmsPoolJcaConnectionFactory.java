@@ -18,12 +18,11 @@ package org.messaginghub.messy.jms;
 
 import javax.jms.Connection;
 
-import org.messaginghub.messy.jms.pool.PooledConnection;
-import org.messaginghub.messy.jms.pool.PooledJcaConnection;
+import org.messaginghub.messy.jms.pool.PooledJCAConnection;
 
 public class JmsPoolJcaConnectionFactory extends JmsPoolXaConnectionFactory {
 
-    private static final long serialVersionUID = 2523244162197526011L;
+    private static final long serialVersionUID = -2470093537159318333L;
 
     private String name;
 
@@ -35,7 +34,8 @@ public class JmsPoolJcaConnectionFactory extends JmsPoolXaConnectionFactory {
         this.name = name;
     }
 
-    protected PooledConnection createPooledConnection(Connection connection) {
-        return new PooledJcaConnection(connection, getTransactionManager(), getName());
+    @Override
+    protected PooledJCAConnection createPooledConnection(Connection connection) {
+        return new PooledJCAConnection(connection, getTransactionManager(), getName());
     }
 }

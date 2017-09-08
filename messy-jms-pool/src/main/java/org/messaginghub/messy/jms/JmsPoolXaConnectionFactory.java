@@ -21,8 +21,11 @@ import java.util.Hashtable;
 import java.util.Map;
 
 import javax.jms.Connection;
+import javax.jms.ConnectionFactory;
 import javax.jms.JMSException;
+import javax.jms.XAConnection;
 import javax.jms.XAConnectionFactory;
+import javax.jms.XAJMSContext;
 import javax.naming.Binding;
 import javax.naming.Context;
 import javax.naming.InitialContext;
@@ -32,8 +35,7 @@ import javax.naming.spi.ObjectFactory;
 import javax.transaction.TransactionManager;
 
 import org.messaginghub.messy.jms.pool.PooledConnectionKey;
-import org.messaginghub.messy.jms.pool.PooledConnection;
-import org.messaginghub.messy.jms.pool.PooledXaConnection;
+import org.messaginghub.messy.jms.pool.PooledXAConnection;
 import org.messaginghub.messy.jms.util.IntrospectionSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,7 +47,7 @@ import org.slf4j.LoggerFactory;
 public class JmsPoolXaConnectionFactory extends JmsPoolConnectionFactory implements ObjectFactory, Serializable {
 
     private static final transient Logger LOG = LoggerFactory.getLogger(JmsPoolXaConnectionFactory.class);
-    private static final long serialVersionUID = -6545688026350913005L;
+    private static final long serialVersionUID = 7753681333583183646L;
 
     private TransactionManager transactionManager;
     private boolean tmFromJndi = false;
@@ -71,6 +73,14 @@ public class JmsPoolXaConnectionFactory extends JmsPoolConnectionFactory impleme
     @Override
     public void setConnectionFactory(Object toUse) {
         if (toUse instanceof XAConnectionFactory) {
+            try {
+                toUse.getClass().getMethod("createContext", String.class, String.class);
+                LOG.info("Porovided ConnectionFactory is JMS 2.0+ capable.");
+                jmsContextSupported = true;
+            } catch (NoSuchMethodException | SecurityException e) {
+                LOG.info("Porovided ConnectionFactory is not JMS 2.0+ capable.");
+            }
+
             connectionFactory = toUse;
         } else {
             throw new IllegalArgumentException("connectionFactory should implement javax.xml.XAConnectionFactory");
@@ -78,7 +88,7 @@ public class JmsPoolXaConnectionFactory extends JmsPoolConnectionFactory impleme
     }
 
     @Override
-    protected Connection createConnection(PooledConnectionKey key) throws JMSException {
+    protected XAConnection createProviderConnection(PooledConnectionKey key) throws JMSException {
         if (connectionFactory instanceof XAConnectionFactory) {
             if (key.getUserName() == null && key.getPassword() == null) {
                 return ((XAConnectionFactory) connectionFactory).createXAConnection();
@@ -91,8 +101,21 @@ public class JmsPoolXaConnectionFactory extends JmsPoolConnectionFactory impleme
     }
 
     @Override
-    protected PooledConnection createPooledConnection(Connection connection) {
-        return new PooledXaConnection(connection, getTransactionManager());
+    protected XAJMSContext createProviderContext(String username, String password, int sessionMode) {
+        if (connectionFactory instanceof ConnectionFactory) {
+            if (username == null && password == null) {
+                return ((XAConnectionFactory) connectionFactory).createXAContext();
+            } else {
+                return ((XAConnectionFactory) connectionFactory).createXAContext(username, password);
+            }
+        } else {
+            throw new javax.jms.IllegalStateRuntimeException("connectionFactory should implement javax.jms.ConnectionFactory");
+        }
+    }
+
+    @Override
+    protected PooledXAConnection createPooledConnection(Connection connection) {
+        return new PooledXAConnection(connection, getTransactionManager());
     }
 
     @SuppressWarnings("unchecked")
@@ -143,7 +166,7 @@ public class JmsPoolXaConnectionFactory extends JmsPoolConnectionFactory impleme
      * Allow transaction manager resolution from JNDI (ee deployment)
      *
      * @param tmFromJndi
-     * 		controls if tx manager resolution is from JNDI
+     * 		controls if TXN manager resolution is from JNDI
      */
     public void setTmFromJndi(boolean tmFromJndi) {
         this.tmFromJndi = tmFromJndi;

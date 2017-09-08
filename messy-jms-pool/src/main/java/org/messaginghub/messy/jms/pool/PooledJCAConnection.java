@@ -25,11 +25,11 @@ import javax.transaction.xa.XAResource;
 import org.apache.geronimo.transaction.manager.WrapperNamedXAResource;
 import org.messaginghub.messy.jms.JmsPoolSession;
 
-public class PooledJcaConnection extends PooledXaConnection {
+public class PooledJCAConnection extends PooledXAConnection {
 
     private final String name;
 
-    public PooledJcaConnection(Connection connection, TransactionManager transactionManager, String name) {
+    public PooledJCAConnection(Connection connection, TransactionManager transactionManager, String name) {
         super(connection, transactionManager);
         this.name = name;
     }

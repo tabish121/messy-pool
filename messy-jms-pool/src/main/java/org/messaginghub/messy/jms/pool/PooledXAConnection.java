@@ -33,11 +33,11 @@ import org.messaginghub.messy.jms.JmsPoolSession;
  * is active, the session will automatically be enlisted in the current
  * transaction.
  */
-public class PooledXaConnection extends PooledConnection {
+public class PooledXAConnection extends PooledConnection {
 
     private final TransactionManager transactionManager;
 
-    public PooledXaConnection(Connection connection, TransactionManager transactionManager) {
+    public PooledXAConnection(Connection connection, TransactionManager transactionManager) {
         super(connection);
         this.transactionManager = transactionManager;
     }
