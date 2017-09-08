@@ -21,6 +21,7 @@ import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -31,7 +32,9 @@ import java.util.concurrent.TimeUnit;
 
 import javax.jms.Connection;
 import javax.jms.JMSException;
+import javax.jms.JMSRuntimeException;
 import javax.jms.QueueConnectionFactory;
+import javax.jms.Session;
 import javax.jms.TopicConnectionFactory;
 
 import org.apache.activemq.ActiveMQConnection;
@@ -62,6 +65,54 @@ public class PooledConnectionFactoryTest extends ActiveMQJmsPoolTestSupport {
         assertTrue(pcf instanceof QueueConnectionFactory);
         assertTrue(pcf instanceof TopicConnectionFactory);
         pcf.stop();
+    }
+
+    @Test(timeout = 60000)
+    public void testFailToCreateJMSContext() throws  Exception {
+        JmsPoolConnectionFactory cf = createPooledConnectionFactory();
+
+        try {
+            cf.createContext();
+            fail("Should have thrown a JMSRuntimeException");
+        } catch (JMSRuntimeException jmsre) {
+            LOG.info("Caught Excepted JMSRuntimeException");
+        }
+    }
+
+    @Test(timeout = 60000)
+    public void testFailToCreateJMSContextWithSessionMode() throws  Exception {
+        JmsPoolConnectionFactory cf = createPooledConnectionFactory();
+
+        try {
+            cf.createContext(Session.SESSION_TRANSACTED);
+            fail("Should have thrown a JMSRuntimeException");
+        } catch (JMSRuntimeException jmsre) {
+            LOG.info("Caught Excepted JMSRuntimeException");
+        }
+    }
+
+    @Test(timeout = 60000)
+    public void testFailToCreateJMSContextWithCredentials() throws  Exception {
+        JmsPoolConnectionFactory cf = createPooledConnectionFactory();
+
+        try {
+            cf.createContext("user", "pass");
+            fail("Should have thrown a JMSRuntimeException");
+        } catch (JMSRuntimeException jmsre) {
+            LOG.info("Caught Excepted JMSRuntimeException");
+        }
+    }
+
+    @Test(timeout = 60000)
+    public void testFailToCreateJMSContextWithCredentialsAndSessionMode() throws  Exception {
+        JmsPoolConnectionFactory cf = createPooledConnectionFactory();
+
+        try {
+            cf.createContext("user", "pass", Session.CLIENT_ACKNOWLEDGE);
+            fail("Should have thrown a JMSRuntimeException");
+        } catch (JMSRuntimeException jmsre) {
+            LOG.info("Caught Excepted JMSRuntimeException");
+        }
     }
 
     @Test(timeout = 60000)

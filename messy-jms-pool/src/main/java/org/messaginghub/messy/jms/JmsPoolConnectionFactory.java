@@ -24,6 +24,7 @@ import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
 import javax.jms.JMSContext;
 import javax.jms.JMSException;
+import javax.jms.JMSRuntimeException;
 import javax.jms.QueueConnection;
 import javax.jms.QueueConnectionFactory;
 import javax.jms.TopicConnection;
@@ -36,6 +37,7 @@ import org.apache.commons.pool2.impl.GenericKeyedObjectPool;
 import org.apache.commons.pool2.impl.GenericKeyedObjectPoolConfig;
 import org.messaginghub.messy.jms.pool.PookedConnectionKey;
 import org.messaginghub.messy.jms.pool.PooledConnection;
+import org.messaginghub.messy.jms.util.JMSExceptionSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -83,6 +85,7 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
     private boolean createConnectionOnStartup = true;
     private boolean useAnonymousProducers = true;
     private boolean reconnectOnException = true;
+    private boolean jmsContextsSupported;
 
     // Temporary value used to always fetch the result of makeObject.
     private final AtomicReference<PooledConnection> mostRecentlyCreated = new AtomicReference<PooledConnection>(null);
@@ -176,6 +179,13 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
      */
     public void setConnectionFactory(final Object toUse) {
         if (toUse instanceof ConnectionFactory) {
+            try {
+                toUse.getClass().getMethod("createContext", int.class);
+                LOG.info("Porovided ConnectionFactory is JMS 2.0+ capable.");
+            } catch (NoSuchMethodException | SecurityException e) {
+                LOG.info("Porovided ConnectionFactory is not JMS 2.0+ capable.");
+            }
+
             this.connectionFactory = toUse;
         } else {
             throw new IllegalArgumentException("connectionFactory should implement javax.jms.ConnectionFactory");
@@ -208,9 +218,13 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
     }
 
     @Override
-    public synchronized Connection createConnection(String userName, String password) throws JMSException {
+    public Connection createConnection(String userName, String password) throws JMSException {
+        return createJmsPoolConnection(userName, password);
+    }
+
+    private synchronized JmsPoolConnection createJmsPoolConnection(String userName, String password) throws JMSException {
         if (stopped.get()) {
-            LOG.debug("PooledConnectionFactory is stopped, skip create new connection.");
+            LOG.debug("JmsPoolConnectionFactory is stopped, skip create new connection.");
             return null;
         }
 
@@ -225,7 +239,7 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
                 connection = mostRecentlyCreated.getAndSet(null);
                 connection.incrementReferenceCount();
             } catch (Exception e) {
-                throw createJmsException("Error while attempting to add new Connection to the pool", e);
+                throw JMSExceptionSupport.create("Error while attempting to add new Connection to the pool", e);
             }
         } else {
             try {
@@ -248,28 +262,30 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
                     }
                 }
             } catch (Exception e) {
-                throw createJmsException("Error while attempting to retrieve a connection from the pool", e);
+                throw JMSExceptionSupport.create("Error while attempting to retrieve a connection from the pool", e);
             }
 
             try {
                 connectionsPool.returnObject(key, connection);
             } catch (Exception e) {
-                throw createJmsException("Error when returning connection to the pool", e);
+                throw JMSExceptionSupport.create("Error when returning connection to the pool", e);
             }
         }
 
-        return newPooledConnection(connection);
+        return newJmsPoolConnection(connection);
     }
 
-    protected Connection newPooledConnection(PooledConnection connection) {
+    /**
+     * Allows subclasses to create an appropriate JmsPoolConnection wrapper for the newly
+     * create connection such as one that provides support for XA Transactions.
+     *
+     * @param connection
+     * 		The {@link PooledConnection} to wrap.
+     *
+     * @return a new {@link JmsPoolConnection} that wraps the given {@link PooledConnection}
+     */
+    protected JmsPoolConnection newJmsPoolConnection(PooledConnection connection) {
         return new JmsPoolConnection(connection);
-    }
-
-    private JMSException createJmsException(String msg, Exception cause) {
-        JMSException exception = new JMSException(msg);
-        exception.setLinkedException(cause);
-        exception.initCause(cause);
-        return exception;
     }
 
     protected Connection createConnection(PookedConnectionKey key) throws JMSException {
@@ -288,26 +304,36 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
 
     @Override
     public JMSContext createContext() {
-        // TODO Auto-generated method stub
-        return null;
+        return createContext(null, null, JMSContext.AUTO_ACKNOWLEDGE);
     }
 
     @Override
     public JMSContext createContext(int sessionMode) {
-        // TODO Auto-generated method stub
-        return null;
+        return createContext(null, null, sessionMode);
     }
 
     @Override
-    public JMSContext createContext(String userName, String password) {
-        // TODO Auto-generated method stub
-        return null;
+    public JMSContext createContext(String username, String password) {
+        return createContext(username, password, JMSContext.AUTO_ACKNOWLEDGE);
     }
 
     @Override
-    public JMSContext createContext(String userName, String password, int sessionMode) {
-        // TODO Auto-generated method stub
-        return null;
+    public JMSContext createContext(String username, String password, int sessionMode) {
+        if (stopped.get()) {
+            LOG.debug("JmsPoolConnectionFactory is stopped, skip create new connection.");
+            return null;
+        }
+
+        if (!jmsContextsSupported) {
+            throw new JMSRuntimeException("Configured ConnectionFactory is not JMS 2+ capable");
+        }
+
+        try {
+            JmsPoolConnection connection = createJmsPoolConnection(username, password);
+            return new JmsPoolContext(connection, sessionMode);
+        } catch (JMSException jmse) {
+            throw JMSExceptionSupport.createRuntimeException(jmse);
+        }
     }
 
     //----- Setup and Close --------------------------------------------------//
