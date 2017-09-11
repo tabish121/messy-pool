@@ -34,9 +34,9 @@ public final class PooledSessionHolder {
 
     private final PooledConnection connection;
     private final Session session;
-    private MessageProducer producer;
-    private TopicPublisher publisher;
-    private QueueSender sender;
+    private volatile MessageProducer producer;
+    private volatile TopicPublisher publisher;
+    private volatile QueueSender sender;
 
     public PooledSessionHolder(PooledConnection connection, Session session) {
         this.connection = connection;
