@@ -355,43 +355,48 @@ public class JmsPoolSession implements Session, TopicSession, QueueSession, XASe
         return addQueueReceiver(((QueueSession) getInternalSession()).createReceiver(queue, selector));
     }
 
-    // TODO - Add checks for JMS 1.1 Session and throw here instead of calling into not found
+    //----- JMS 2.0 Subscriber creation API ----------------------------------//
 
     @Override
     public MessageConsumer createSharedConsumer(Topic topic, String sharedSubscriptionName) throws JMSException {
-        // TODO Auto-generated method stub
-        return null;
+        PooledSessionHolder state = safeGetSessionHolder();
+        state.getConnection().checkClientJMSVersionSupport(2, 0);
+        return addConsumer(state.getSession().createSharedConsumer(topic, sharedSubscriptionName));
     }
 
     @Override
     public MessageConsumer createSharedConsumer(Topic topic, String sharedSubscriptionName, String messageSelector) throws JMSException {
-        // TODO Auto-generated method stub
-        return null;
+        PooledSessionHolder state = safeGetSessionHolder();
+        state.getConnection().checkClientJMSVersionSupport(2, 0);
+        return addConsumer(state.getSession().createSharedConsumer(topic, sharedSubscriptionName, messageSelector));
     }
 
     @Override
     public MessageConsumer createDurableConsumer(Topic topic, String name) throws JMSException {
-        // TODO Auto-generated method stub
-        return null;
+        PooledSessionHolder state = safeGetSessionHolder();
+        state.getConnection().checkClientJMSVersionSupport(2, 0);
+        return addConsumer(state.getSession().createDurableConsumer(topic, name));
     }
 
     @Override
-    public MessageConsumer createDurableConsumer(Topic topic, String name, String messageSelector, boolean noLocal)
-            throws JMSException {
-        // TODO Auto-generated method stub
-        return null;
+    public MessageConsumer createDurableConsumer(Topic topic, String name, String messageSelector, boolean noLocal) throws JMSException {
+        PooledSessionHolder state = safeGetSessionHolder();
+        state.getConnection().checkClientJMSVersionSupport(2, 0);
+        return addConsumer(state.getSession().createDurableConsumer(topic, name, messageSelector, noLocal));
     }
 
     @Override
     public MessageConsumer createSharedDurableConsumer(Topic topic, String name) throws JMSException {
-        // TODO Auto-generated method stub
-        return null;
+        PooledSessionHolder state = safeGetSessionHolder();
+        state.getConnection().checkClientJMSVersionSupport(2, 0);
+        return addConsumer(state.getSession().createSharedDurableConsumer(topic, name));
     }
 
     @Override
     public MessageConsumer createSharedDurableConsumer(Topic topic, String name, String messageSelector) throws JMSException {
-        // TODO Auto-generated method stub
-        return null;
+        PooledSessionHolder state = safeGetSessionHolder();
+        state.getConnection().checkClientJMSVersionSupport(2, 0);
+        return addConsumer(state.getSession().createSharedDurableConsumer(topic, name, messageSelector));
     }
 
     // Producer related methods
