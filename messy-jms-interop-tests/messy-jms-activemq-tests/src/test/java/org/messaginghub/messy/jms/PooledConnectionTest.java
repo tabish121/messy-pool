@@ -101,7 +101,7 @@ public class PooledConnectionTest extends ActiveMQJmsPoolTestSupport {
         try {
             conn.start();
             conn.setClientID("newID3");
-        fail("Calling setClientID() after start() mut raise a JMSException.");
+            fail("Calling setClientID() after start() mut raise a JMSException.");
         } catch (IllegalStateException ise) {
             LOG.debug("Correctly received " + ise);
         } finally {
