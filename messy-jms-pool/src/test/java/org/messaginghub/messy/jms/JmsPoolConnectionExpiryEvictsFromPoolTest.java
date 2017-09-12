@@ -25,39 +25,24 @@ import java.util.concurrent.TimeUnit;
 import javax.jms.Connection;
 import javax.jms.Session;
 
-import org.apache.activemq.ActiveMQConnectionFactory;
-import org.apache.activemq.broker.BrokerService;
-import org.apache.activemq.broker.TransportConnector;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.messaginghub.messy.jms.JmsPoolConnection;
-import org.messaginghub.messy.jms.JmsPoolConnectionFactory;
+import org.messaginghub.messy.jms.mock.MockJMSConnectionFactory;
 
-public class PooledConnectionExpiryEvictsFromPoolTest extends JmsPoolTestSupport {
+public class JmsPoolConnectionExpiryEvictsFromPoolTest {
 
-    private ActiveMQConnectionFactory factory;
+    private MockJMSConnectionFactory factory;
     private JmsPoolConnectionFactory pooledFactory;
 
-    @Override
     @Before
     public void setUp() throws Exception {
-        super.setUp();
-
-        brokerService = new BrokerService();
-        brokerService.setUseJmx(false);
-        brokerService.setPersistent(false);
-        brokerService.setSchedulerSupport(false);
-        brokerService.setAdvisorySupport(false);
-        TransportConnector connector = brokerService.addConnector("tcp://localhost:0");
-        brokerService.start();
-        factory = new ActiveMQConnectionFactory("mock:" + connector.getConnectUri());
+        factory = new MockJMSConnectionFactory();
         pooledFactory = new JmsPoolConnectionFactory();
         pooledFactory.setConnectionFactory(factory);
         pooledFactory.setMaxConnections(1);
     }
 
-    @Override
     @After
     public void tearDown() throws Exception {
         try {
@@ -65,8 +50,6 @@ public class PooledConnectionExpiryEvictsFromPoolTest extends JmsPoolTestSupport
         } catch (Exception ex) {
             // ignored
         }
-
-        super.tearDown();
     }
 
     @Test(timeout = 60000)
