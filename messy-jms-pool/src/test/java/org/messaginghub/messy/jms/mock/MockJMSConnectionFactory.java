@@ -16,12 +16,15 @@
  */
 package org.messaginghub.messy.jms.mock;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
 import javax.jms.JMSContext;
 import javax.jms.JMSException;
+import javax.jms.JMSSecurityException;
 import javax.jms.QueueConnection;
 import javax.jms.QueueConnectionFactory;
 import javax.jms.TopicConnection;
@@ -31,6 +34,8 @@ import javax.jms.TopicConnectionFactory;
  * Mock JMS ConnectionFactory used to create Mock Connections
  */
 public class MockJMSConnectionFactory implements ConnectionFactory, QueueConnectionFactory, TopicConnectionFactory {
+
+    private final Map<String, MockJMSUser> credentials = new HashMap<>();
 
     private String clientID;
 
@@ -65,7 +70,8 @@ public class MockJMSConnectionFactory implements ConnectionFactory, QueueConnect
     }
 
     private MockJMSConnection createMockConnection(String username, String password) throws JMSException {
-        MockJMSConnection connection = new MockJMSConnection(username, password);
+        MockJMSUser user = validateUser(username, password);
+        MockJMSConnection connection = new MockJMSConnection(user);
 
         if (clientID != null && !clientID.isEmpty()) {
             connection.setClientID(clientID, true);
@@ -112,5 +118,28 @@ public class MockJMSConnectionFactory implements ConnectionFactory, QueueConnect
 
     public void setClientID(String clientID) {
         this.clientID = clientID;
+    }
+
+    public void addUser(MockJMSUser userCredentials) {
+        this.credentials.put(userCredentials.getUsername(), userCredentials);
+    }
+
+    //----- Internal Support Methods -----------------------------------------//
+
+    private MockJMSUser validateUser(String username, String password) throws JMSSecurityException {
+        MockJMSUser user = MockJMSUser.DEFAULT_USER;
+
+        if (!credentials.isEmpty()) {
+            if (username == null) {
+                throw new JMSSecurityException("Anonymous users not allowed with current configuration");
+            }
+
+            user = credentials.get(username);
+            if (user == null || user.getPassword().equals(password)) {
+                throw new JMSSecurityException("Invalid username or password provided");
+            }
+        }
+
+        return user;
     }
 }

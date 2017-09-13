@@ -59,21 +59,14 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
     private final AtomicLong tempDestIdGenerator = new AtomicLong();
 
     private final UUID connectionId = UUID.randomUUID();
-    private final String username;
-    private final String password;
+    private final MockJMSUser user;
 
     private ExceptionListener exceptionListener;
     private String clientID;
     private boolean explicitClientID;
 
-    public MockJMSConnection() {
-        this.username = null;
-        this.password = null;
-    }
-
-    public MockJMSConnection(String username, String password) {
-        this.username = username;
-        this.password = password;
+    public MockJMSConnection(MockJMSUser user) {
+        this.user = user;
     }
 
     @Override
@@ -244,12 +237,12 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
 
     public String getUsername() throws JMSException {
         checkClosed();
-        return username;
+        return user.getUsername();
     }
 
     public String getPassword() throws JMSException {
         checkClosed();
-        return password;
+        return user.getPassword();
     }
 
     public UUID getConnectionId() throws JMSException {
