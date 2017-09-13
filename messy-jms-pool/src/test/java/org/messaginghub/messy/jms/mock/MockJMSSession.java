@@ -233,73 +233,64 @@ public class MockJMSSession implements Session, QueueSession, TopicSession, Auto
     public TopicSubscriber createSubscriber(Topic topic, String messageSelector, boolean noLocal) throws JMSException {
         checkClosed();
         checkDestination(topic);
-        //return new MockJMSTopicSubscriber(this, getNextConsumerId(), dest, noLocal, messageSelector);
-        return null;
+        return new MockJMSTopicSubscriber(this, getNextConsumerId(), (MockJMSTopic) topic, messageSelector, noLocal);
     }
 
     @Override
     public QueueReceiver createReceiver(Queue queue) throws JMSException {
-        checkClosed();
-        // TODO Auto-generated method stub
-        return null;
+        return createReceiver(queue, null);
     }
 
     @Override
     public QueueReceiver createReceiver(Queue queue, String messageSelector) throws JMSException {
         checkClosed();
-        // TODO Auto-generated method stub
-        return null;
+        checkDestination(queue);
+        return new MockJMSQueueReceiver(this, getNextConsumerId(), (MockJMSQueue) queue, messageSelector);
     }
 
     @Override
     public MessageConsumer createConsumer(Destination destination) throws JMSException {
         checkClosed();
-        // TODO Auto-generated method stub
-        return null;
+        return createConsumer(destination, null, false);
     }
 
     @Override
     public MessageConsumer createConsumer(Destination destination, String messageSelector) throws JMSException {
         checkClosed();
-        // TODO Auto-generated method stub
-        return null;
+        return createConsumer(destination, messageSelector, false);
     }
 
     @Override
-    public MessageConsumer createConsumer(Destination destination, String messageSelector, boolean NoLocal) throws JMSException {
+    public MessageConsumer createConsumer(Destination destination, String messageSelector, boolean noLocal) throws JMSException {
         checkClosed();
-        // TODO Auto-generated method stub
-        return null;
+        checkDestination(destination);
+        return new MockJMSMessageConsumer(this, getNextConsumerId(), (MockJMSDestination) destination, messageSelector, noLocal);
     }
 
     @Override
     public TopicSubscriber createDurableSubscriber(Topic topic, String name) throws JMSException {
-        checkClosed();
-        // TODO Auto-generated method stub
-        return null;
+        return createDurableSubscriber(topic, name, null, false);
     }
 
     @Override
     public TopicSubscriber createDurableSubscriber(Topic topic, String name, String messageSelector, boolean noLocal) throws JMSException {
         checkClosed();
-        // TODO Auto-generated method stub
-        return null;
+        checkDestination(topic);
+        return new MockJMSTopicSubscriber(this, getNextConsumerId(), (MockJMSTopic) topic, messageSelector, noLocal);
     }
 
     //----- Browser Factory Methods ------------------------------------------//
 
     @Override
     public QueueBrowser createBrowser(Queue queue) throws JMSException {
-        checkClosed();
-        // TODO Auto-generated method stub
-        return null;
+        return createBrowser(queue, null);
     }
 
     @Override
     public QueueBrowser createBrowser(Queue queue, String messageSelector) throws JMSException {
         checkClosed();
-        // TODO Auto-generated method stub
-        return null;
+        checkDestination(queue);
+        return new MockJMSQueueBrowser(this, getNextConsumerId(), (MockJMSQueue) queue, messageSelector);
     }
 
     //----- Destination Factory Methods --------------------------------------//

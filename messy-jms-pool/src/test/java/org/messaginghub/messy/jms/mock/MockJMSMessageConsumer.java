@@ -31,17 +31,19 @@ public class MockJMSMessageConsumer implements MessageConsumer, AutoCloseable {
     protected final MockJMSSession session;
     protected final String consumerId;
     protected final MockJMSDestination destination;
+    protected final String messageSelector;
+    protected final boolean noLocal;
 
     private final AtomicBoolean closed = new AtomicBoolean();
 
     private MessageListener messageListener;
-    private final String messageSelector;
 
-    public MockJMSMessageConsumer(MockJMSSession session, String consumerId, MockJMSDestination destination, String messageSelector) throws JMSException {
+    public MockJMSMessageConsumer(MockJMSSession session, String consumerId, MockJMSDestination destination, String messageSelector, boolean noLocal) throws JMSException {
         this.session = session;
         this.consumerId = consumerId;
         this.destination = destination;
         this.messageSelector = messageSelector;
+        this.noLocal = noLocal;
 
         session.add(this);
     }
