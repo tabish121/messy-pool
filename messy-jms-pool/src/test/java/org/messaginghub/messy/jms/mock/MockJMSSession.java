@@ -149,57 +149,53 @@ public class MockJMSSession implements Session, QueueSession, TopicSession, Auto
     @Override
     public BytesMessage createBytesMessage() throws JMSException {
         checkClosed();
-        // TODO Auto-generated method stub
-        return null;
+        return new MockJMSBytesMessage();
     }
 
     @Override
     public MapMessage createMapMessage() throws JMSException {
         checkClosed();
-        // TODO Auto-generated method stub
-        return null;
+        return new MockJMSMapMessage();
     }
 
     @Override
     public Message createMessage() throws JMSException {
         checkClosed();
-        // TODO Auto-generated method stub
-        return null;
+        return new MockJMSMessage();
     }
 
     @Override
     public ObjectMessage createObjectMessage() throws JMSException {
         checkClosed();
-        // TODO Auto-generated method stub
-        return null;
+        return new MockJMSObjectMessage();
     }
 
     @Override
     public ObjectMessage createObjectMessage(Serializable object) throws JMSException {
         checkClosed();
-        // TODO Auto-generated method stub
-        return null;
+        MockJMSObjectMessage message = new MockJMSObjectMessage();
+        message.setObject(object);
+        return message;
     }
 
     @Override
     public StreamMessage createStreamMessage() throws JMSException {
         checkClosed();
-        // TODO Auto-generated method stub
-        return null;
+        return new MockJMSStreamMessage();
     }
 
     @Override
     public TextMessage createTextMessage() throws JMSException {
         checkClosed();
-        // TODO Auto-generated method stub
-        return null;
+        return new MockJMSTextMessage();
     }
 
     @Override
     public TextMessage createTextMessage(String text) throws JMSException {
         checkClosed();
-        // TODO Auto-generated method stub
-        return null;
+        MockJMSTextMessage message = new MockJMSTextMessage();
+        message.setText(text);
+        return message;
     }
 
     //----- Producer Factory Methods -----------------------------------------//
@@ -324,43 +320,43 @@ public class MockJMSSession implements Session, QueueSession, TopicSession, Auto
     @Override
     public MessageConsumer createSharedConsumer(Topic topic, String sharedSubscriptionName) throws JMSException {
         checkClosed();
-        // TODO Auto-generated method stub
-        return null;
+        checkDestination(topic);
+        return new MockJMSMessageConsumer(this, getNextConsumerId(), (MockJMSTopic) topic, null, false);
     }
 
     @Override
     public MessageConsumer createSharedConsumer(Topic topic, String sharedSubscriptionName, String messageSelector) throws JMSException {
         checkClosed();
-        // TODO Auto-generated method stub
-        return null;
+        checkDestination(topic);
+        return new MockJMSMessageConsumer(this, getNextConsumerId(), (MockJMSTopic) topic, messageSelector, false);
     }
 
     @Override
     public MessageConsumer createDurableConsumer(Topic topic, String name) throws JMSException {
         checkClosed();
-        // TODO Auto-generated method stub
-        return null;
+        checkDestination(topic);
+        return new MockJMSMessageConsumer(this, getNextConsumerId(), (MockJMSTopic) topic, null, false);
     }
 
     @Override
     public MessageConsumer createDurableConsumer(Topic topic, String name, String messageSelector, boolean noLocal)throws JMSException {
         checkClosed();
-        // TODO Auto-generated method stub
-        return null;
+        checkDestination(topic);
+        return new MockJMSMessageConsumer(this, getNextConsumerId(), (MockJMSTopic) topic, messageSelector, noLocal);
     }
 
     @Override
     public MessageConsumer createSharedDurableConsumer(Topic topic, String name) throws JMSException {
         checkClosed();
-        // TODO Auto-generated method stub
-        return null;
+        checkDestination(topic);
+        return new MockJMSMessageConsumer(this, getNextConsumerId(), (MockJMSTopic) topic, null, false);
     }
 
     @Override
     public MessageConsumer createSharedDurableConsumer(Topic topic, String name, String messageSelector) throws JMSException {
         checkClosed();
-        // TODO Auto-generated method stub
-        return null;
+        checkDestination(topic);
+        return new MockJMSMessageConsumer(this, getNextConsumerId(), (MockJMSTopic) topic, messageSelector, false);
     }
 
     //----- JEE Session methods not implemented ------------------------------//
