@@ -24,7 +24,7 @@
   </parent>
 
   <artifactId>messy-jms-activemq-tests</artifactId>
-  <name>JMS Client for ActiveMQ Interop Tests</name>
+  <name>ActiveMQ JMS Client Interop Tests</name>
   <description>Tests the JMS Pool using the client from the ActiveMQ Broker.</description>
   <packaging>jar</packaging>
   <properties>
