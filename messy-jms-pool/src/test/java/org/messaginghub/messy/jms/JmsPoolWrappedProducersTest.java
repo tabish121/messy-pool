@@ -17,8 +17,10 @@
 package org.messaginghub.messy.jms;
 
 import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.fail;
 
+import javax.jms.JMSException;
 import javax.jms.Queue;
 import javax.jms.QueueSession;
 import javax.jms.Session;
@@ -42,7 +44,6 @@ public class JmsPoolWrappedProducersTest {
         pooledFactory.setConnectionFactory(factory);
         pooledFactory.setMaxConnections(1);
         pooledFactory.setBlockIfSessionPoolIsFull(false);
-        pooledFactory.setUseAnonymousProducers(false);
     }
 
     @After
@@ -55,7 +56,18 @@ public class JmsPoolWrappedProducersTest {
     }
 
     @Test(timeout = 60000)
-    public void testJmsPoolMessageProducersAreUnique() throws Exception {
+    public void testCreateMessageProducerWithAnonymousProducerEnabled() throws Exception {
+        doTestCreateMessageProducer(true);
+    }
+
+    @Test(timeout = 60000)
+    public void testCreateMessageProducerWithAnonymousProducerDisabled() throws Exception {
+        doTestCreateMessageProducer(false);
+    }
+
+    private void doTestCreateMessageProducer(boolean useAnonymousProducers) throws JMSException {
+        pooledFactory.setUseAnonymousProducers(useAnonymousProducers);
+
         JmsPoolConnection connection = (JmsPoolConnection) pooledFactory.createConnection();
         Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
 
@@ -65,11 +77,28 @@ public class JmsPoolWrappedProducersTest {
         JmsPoolMessageProducer producer1 = (JmsPoolMessageProducer) session.createProducer(queue1);
         JmsPoolMessageProducer producer2 = (JmsPoolMessageProducer) session.createProducer(queue2);
 
-        assertNotSame(producer1.getMessageProducer(), producer2.getMessageProducer());
+        if (useAnonymousProducers) {
+            assertSame(producer1.getMessageProducer(), producer2.getMessageProducer());
+        } else {
+            assertNotSame(producer1.getMessageProducer(), producer2.getMessageProducer());
+        }
+
+        connection.close();
     }
 
     @Test(timeout = 60000)
-    public void testJmsPoolTopicPublishersAreUnique() throws Exception {
+    public void testCreateTopicPublisherWithAnonymousProducerEnabled() throws Exception {
+        doTestCreateTopicPublisher(true);
+    }
+
+    @Test(timeout = 60000)
+    public void testCreateTopicPublisherWithAnonymousProducerDisabled() throws Exception {
+        doTestCreateTopicPublisher(false);
+    }
+
+    private void doTestCreateTopicPublisher(boolean useAnonymousProducers) throws JMSException {
+        pooledFactory.setUseAnonymousProducers(useAnonymousProducers);
+
         JmsPoolConnection connection = (JmsPoolConnection) pooledFactory.createConnection();
         TopicSession session = connection.createTopicSession(false, Session.AUTO_ACKNOWLEDGE);
 
@@ -79,11 +108,28 @@ public class JmsPoolWrappedProducersTest {
         JmsPoolTopicPublisher publisher1 = (JmsPoolTopicPublisher) session.createPublisher(topic1);
         JmsPoolTopicPublisher publisher2 = (JmsPoolTopicPublisher) session.createPublisher(topic2);
 
-        assertNotSame(publisher1.getMessageProducer(), publisher2.getMessageProducer());
+        if (useAnonymousProducers) {
+            assertSame(publisher1.getMessageProducer(), publisher2.getMessageProducer());
+        } else {
+            assertNotSame(publisher1.getMessageProducer(), publisher2.getMessageProducer());
+        }
+
+        connection.close();
     }
 
     @Test(timeout = 60000)
-    public void testJmsPoolQueueSendersAreUnique() throws Exception {
+    public void testCreateQueueSenderWithAnonymousProducerEnabled() throws Exception {
+        doTestCreateQueueSender(true);
+    }
+
+    @Test(timeout = 60000)
+    public void testCreateQueueSenderWithAnonymousProducerDisabled() throws Exception {
+        doTestCreateQueueSender(false);
+    }
+
+    private void doTestCreateQueueSender(boolean useAnonymousProducers) throws JMSException {
+        pooledFactory.setUseAnonymousProducers(useAnonymousProducers);
+
         JmsPoolConnection connection = (JmsPoolConnection) pooledFactory.createConnection();
         QueueSession session = connection.createQueueSession(false, Session.AUTO_ACKNOWLEDGE);
 
@@ -93,7 +139,13 @@ public class JmsPoolWrappedProducersTest {
         JmsPoolQueueSender sender1 = (JmsPoolQueueSender) session.createSender(queue1);
         JmsPoolQueueSender sender2 = (JmsPoolQueueSender) session.createSender(queue2);
 
-        assertNotSame(sender1.getMessageProducer(), sender2.getMessageProducer());
+        if (useAnonymousProducers) {
+            assertSame(sender1.getMessageProducer(), sender2.getMessageProducer());
+        } else {
+            assertNotSame(sender1.getMessageProducer(), sender2.getMessageProducer());
+        }
+
+        connection.close();
     }
 
     @Test(timeout = 60000)
