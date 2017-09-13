@@ -21,6 +21,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import javax.jms.CompletionListener;
 import javax.jms.DeliveryMode;
 import javax.jms.Destination;
+import javax.jms.InvalidDestinationException;
 import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.MessageProducer;
@@ -159,50 +160,68 @@ public class MockJMSMessageProducer implements MessageProducer, AutoCloseable {
 
     @Override
     public void send(Message message) throws JMSException {
-        checkClosed();
-        // TODO Auto-generated method stub
+        send(message, deliveryMode, priority, timeToLive);
     }
 
     @Override
     public void send(Message message, int deliveryMode, int priority, long timeToLive) throws JMSException {
         checkClosed();
-        // TODO Auto-generated method stub
+
+        if (anonymousProducer) {
+            throw new UnsupportedOperationException("Using this method is not supported on producers created without an explicit Destination");
+        }
     }
 
     @Override
     public void send(Destination destination, Message message) throws JMSException {
-        checkClosed();
-        // TODO Auto-generated method stub
-    }
-
-    @Override
-    public void send(Message message, CompletionListener completionListener) throws JMSException {
-        checkClosed();
-        // TODO Auto-generated method stub
+        send(destination, message, deliveryMode, priority, timeToLive);
     }
 
     @Override
     public void send(Destination destination, Message message, int deliveryMode, int priority, long timeToLive) throws JMSException {
         checkClosed();
-        // TODO Auto-generated method stub
+        checkDestinationNotInvalid(destination);
+
+        if (!anonymousProducer) {
+            throw new UnsupportedOperationException("Using this method is not supported on producers created with an explicit Destination.");
+        }
     }
 
     @Override
     public void send(Destination destination, Message message, CompletionListener completionListener) throws JMSException {
+        send(message, deliveryMode, priority, timeToLive, completionListener);
+    }
+
+    @Override
+    public void send(Message message, CompletionListener completionListener) throws JMSException {
         checkClosed();
-        // TODO Auto-generated method stub
+
+        if (anonymousProducer) {
+            throw new UnsupportedOperationException("Using this method is not supported on producers created without an explicit Destination");
+        }
+
+        if (completionListener == null) {
+            throw new IllegalArgumentException("CompletetionListener cannot be null");
+        }
     }
 
     @Override
     public void send(Message message, int deliveryMode, int priority, long timeToLive, CompletionListener completionListener) throws JMSException {
-        checkClosed();
-        // TODO Auto-generated method stub
+        send(destination, message, this.deliveryMode, this.priority, this.timeToLive, completionListener);
     }
 
     @Override
     public void send(Destination destination, Message message, int deliveryMode, int priority, long timeToLive, CompletionListener completionListener) throws JMSException {
         checkClosed();
-        // TODO
+        checkDestinationNotInvalid(destination);
+
+        if (!anonymousProducer) {
+            throw new UnsupportedOperationException("Using this method is not supported on producers created with an explicit Destination.");
+        }
+
+        if (completionListener == null) {
+            throw new IllegalArgumentException("CompletionListener cannot be null");
+        }
     }
 
     //----- Internal Support Methods -----------------------------------------//
@@ -210,6 +229,12 @@ public class MockJMSMessageProducer implements MessageProducer, AutoCloseable {
     protected void checkClosed() throws IllegalStateException {
         if (closed.get()) {
             throw new IllegalStateException("The MessageProducer is closed");
+        }
+    }
+
+    private void checkDestinationNotInvalid(Destination destination) throws InvalidDestinationException {
+        if (destination == null) {
+            throw new InvalidDestinationException("Destination must not be null");
         }
     }
 
