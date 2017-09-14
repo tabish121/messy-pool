@@ -19,6 +19,10 @@ package org.messaginghub.messy.jms.mock;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -30,6 +34,7 @@ import javax.jms.ExceptionListener;
 import javax.jms.IllegalStateException;
 import javax.jms.InvalidClientIDException;
 import javax.jms.JMSException;
+import javax.jms.JMSSecurityException;
 import javax.jms.Queue;
 import javax.jms.QueueConnection;
 import javax.jms.QueueSession;
@@ -58,6 +63,7 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
     private final AtomicLong sessionIdGenerator = new AtomicLong();
     private final AtomicLong tempDestIdGenerator = new AtomicLong();
 
+    private final ThreadPoolExecutor executor;
     private final UUID connectionId = UUID.randomUUID();
     private final MockJMSUser user;
 
@@ -67,6 +73,19 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
 
     public MockJMSConnection(MockJMSUser user) {
         this.user = user;
+
+        executor = new ThreadPoolExecutor(1, 1, 5, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>(),
+            new ThreadFactory() {
+
+                @Override
+                public Thread newThread(Runnable r) {
+                    Thread newThread = new Thread(r, "MockJMSConnection Thread: " + connectionId);
+                    newThread.setDaemon(true);
+                    return newThread;
+                }
+            });
+
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.DiscardOldestPolicy());
     }
 
     @Override
@@ -86,6 +105,12 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
         if (closed.compareAndSet(false, true)) {
             connected.set(false);
             started.set(false);
+
+            executor.shutdown();
+            try {
+                executor.awaitTermination(5, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+            }
         }
     }
 
@@ -317,6 +342,12 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
 
             if (clientID == null || clientID.trim().isEmpty()) {
                 throw new IllegalArgumentException("Client ID cannot be null or empty string");
+            }
+
+            if (!user.isValid()) {
+                executor.shutdown();
+
+                throw new JMSSecurityException(user.getFailureCause());
             }
 
             connected.set(true);

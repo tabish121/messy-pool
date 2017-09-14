@@ -21,21 +21,24 @@ package org.messaginghub.messy.jms.mock;
  */
 public class MockJMSUser {
 
-    public static final MockJMSUser DEFAULT_USER = new MockJMSUser(true);
-    public static final MockJMSUser INVALID_USER = new MockJMSUser(false);
+    public static final MockJMSUser DEFAULT_USER = new MockJMSUser(true, null);
+    public static final MockJMSUser INVALID_CREDENTIALS = new MockJMSUser(false, "Username or password was invalid");
+    public static final MockJMSUser INVALID_ANONYMOUS = new MockJMSUser(false, "Anonymous users not allowed");
 
     private final String username;
     private final String password;
     private final boolean valid;
+    private final String failureCause;
 
     private boolean canProduce = true;
     private boolean canConsume = true;
     private boolean canBrowse = true;
 
-    private MockJMSUser(boolean valid) {
+    MockJMSUser(boolean valid, String cause) {
         this.username = null;
         this.password = null;
         this.valid = valid;
+        this.failureCause = cause;
     }
 
     public MockJMSUser(String username, String password) {
@@ -50,6 +53,7 @@ public class MockJMSUser {
         this.username = username;
         this.password = password;
         this.valid = true;
+        this.failureCause = null;
     }
 
     public String getUsername() {
@@ -86,6 +90,10 @@ public class MockJMSUser {
 
     public boolean isValid() {
         return valid;
+    }
+
+    public String getFailureCause() {
+        return failureCause;
     }
 
     @Override

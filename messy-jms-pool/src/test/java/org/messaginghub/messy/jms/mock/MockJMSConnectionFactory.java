@@ -38,6 +38,7 @@ public class MockJMSConnectionFactory implements ConnectionFactory, QueueConnect
     private final Map<String, MockJMSUser> credentials = new HashMap<>();
 
     private String clientID;
+    private boolean deferAuthenticationToConnection;
 
     @Override
     public TopicConnection createTopicConnection() throws JMSException {
@@ -71,6 +72,11 @@ public class MockJMSConnectionFactory implements ConnectionFactory, QueueConnect
 
     private MockJMSConnection createMockConnection(String username, String password) throws JMSException {
         MockJMSUser user = validateUser(username, password);
+
+        if (!user.isValid() && !deferAuthenticationToConnection) {
+            throw new JMSSecurityException(user.getFailureCause());
+        }
+
         MockJMSConnection connection = new MockJMSConnection(user);
 
         if (clientID != null && !clientID.isEmpty()) {
@@ -120,23 +126,58 @@ public class MockJMSConnectionFactory implements ConnectionFactory, QueueConnect
         this.clientID = clientID;
     }
 
+    /**
+     * Adds a User to the set of Users that this factory will use when performing
+     * authentication when given a user and password on connection create.
+     *
+     * When there are no configured users the factory allows any create connection to
+     * succeed.  Once a user is added then only a call to
+     * {@link MockJMSConnectionFactory#createConnection(String, String)} with valid
+     * user credentials will succeed in creating a new connection.
+     *
+     * @param userCredentials
+     * 		The new user credentials to store for authentication and authorization purposes.
+     */
     public void addUser(MockJMSUser userCredentials) {
         this.credentials.put(userCredentials.getUsername(), userCredentials);
     }
 
+    /**
+     * @return the true if the factory defers authentication failure to a created Connection.
+     */
+    public boolean isDeferAuthenticationToConnection() {
+        return deferAuthenticationToConnection;
+    }
+
+    /**
+     * Controls whether the factory or the connection object will perform user authentication
+     * when users are configured, if no users are configured then authentication will always
+     * succeed regardless.
+     *
+     * In some cases it is desirable to have the connection create call succeed regardless of
+     * the user credentials to simulate client's that do not perform authentication until the
+     * connection becomes started.
+     *
+     * @param deferAuthenticationToConnection
+     * 		whether the factory or the connection should perform the authentication.
+     */
+    public void setDeferAuthenticationToConnection(boolean deferAuthenticationToConnection) {
+        this.deferAuthenticationToConnection = deferAuthenticationToConnection;
+    }
+
     //----- Internal Support Methods -----------------------------------------//
 
-    private MockJMSUser validateUser(String username, String password) throws JMSSecurityException {
+    private MockJMSUser validateUser(String username, String password) {
         MockJMSUser user = MockJMSUser.DEFAULT_USER;
 
         if (!credentials.isEmpty()) {
             if (username == null) {
-                throw new JMSSecurityException("Anonymous users not allowed with current configuration");
-            }
-
-            user = credentials.get(username);
-            if (user == null || user.getPassword().equals(password)) {
-                throw new JMSSecurityException("Invalid username or password provided");
+                user = MockJMSUser.INVALID_ANONYMOUS;
+            } else {
+                user = credentials.get(username);
+                if (user == null || !user.getPassword().equals(password)) {
+                    user = MockJMSUser.INVALID_CREDENTIALS;
+                }
             }
         }
 
