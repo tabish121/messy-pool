@@ -26,7 +26,6 @@ import javax.jms.Destination;
 import javax.jms.ExceptionListener;
 import javax.jms.IllegalStateException;
 import javax.jms.JMSException;
-import javax.jms.JMSSecurityException;
 import javax.jms.Queue;
 import javax.jms.QueueConnection;
 import javax.jms.QueueSession;
@@ -96,17 +95,7 @@ public class JmsPoolConnection implements TopicConnection, QueueConnection, JmsP
     @Override
     public void start() throws JMSException {
         assertNotClosed();
-        try {
-            connection.start();
-        } catch (JMSSecurityException jmsse) {
-            LOG.warn("Security exception on start, connection will be closed");
-            if (this.connection != null) {
-                this.connection.close();
-                this.connection.decrementReferenceCount();
-                this.connection = null;
-            }
-            throw jmsse;
-        }
+        connection.start();
     }
 
     @Override
@@ -140,17 +129,7 @@ public class JmsPoolConnection implements TopicConnection, QueueConnection, JmsP
         // this could happen when a JMS component such as Spring that uses a
         // Pooled JMS ConnectionFactory when it shuts down and reinitializes.
         if (this.getConnection().getClientID() == null || !this.getClientID().equals(clientID)) {
-            try {
-                getConnection().setClientID(clientID);
-            } catch (JMSSecurityException jmsse) {
-                LOG.warn("Security exception on setClientID, connection will be closed");
-                if (this.connection != null) {
-                    this.connection.close();
-                    this.connection.decrementReferenceCount();
-                    this.connection = null;
-                }
-                throw jmsse;
-            }
+            getConnection().setClientID(clientID);
         }
     }
 
