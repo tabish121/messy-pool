@@ -32,6 +32,7 @@ import javax.jms.Connection;
 import javax.jms.JMSException;
 import javax.jms.Session;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.messaginghub.messy.jms.mock.MockJMSConnectionFactory;
@@ -51,6 +52,15 @@ public class JmsPoolConnectionFactoryMaximumActiveTest {
 
     private static ConcurrentMap<Integer, Session> sessions = new ConcurrentHashMap<Integer, Session>();
 
+    private JmsPoolConnectionFactory cf;
+
+    @After
+    public void tearDown() {
+        try {
+            cf.stop();
+        } catch (Exception ex) {}
+    }
+
     public static void addSession(Session s) {
         sessions.put(s.hashCode(), s);
     }
@@ -63,11 +73,12 @@ public class JmsPoolConnectionFactoryMaximumActiveTest {
     @Test(timeout = 60000)
     public void testCreateSessionBlocksWhenMaxSessionsLoanedOutUntilReturned() throws Exception {
         MockJMSConnectionFactory mock = new MockJMSConnectionFactory();
-        JmsPoolConnectionFactory cf = new JmsPoolConnectionFactory();
+        cf = new JmsPoolConnectionFactory();
         cf.setConnectionFactory(mock);
         cf.setMaxConnections(3);
         cf.setMaximumActiveSessionPerConnection(1);
         cf.setBlockIfSessionPoolIsFull(true);
+
         connection = cf.createConnection();
 
         // start test runner threads. It is expected that the second thread
@@ -103,11 +114,12 @@ public class JmsPoolConnectionFactoryMaximumActiveTest {
     public void testCreateSessionBlocksWhenMaxSessionsLoanedOut() throws Exception {
         MockJMSConnectionFactory mock = new MockJMSConnectionFactory();
 
-        JmsPoolConnectionFactory cf = new JmsPoolConnectionFactory();
+        cf = new JmsPoolConnectionFactory();
         cf.setConnectionFactory(mock);
         cf.setMaxConnections(3);
         cf.setMaximumActiveSessionPerConnection(1);
         cf.setBlockIfSessionPoolIsFull(true);
+
         connection = cf.createConnection();
 
         // start test runner threads. It is expected that the second thread

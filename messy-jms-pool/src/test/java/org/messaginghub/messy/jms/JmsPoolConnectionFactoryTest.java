@@ -36,6 +36,7 @@ import javax.jms.QueueConnectionFactory;
 import javax.jms.TopicConnectionFactory;
 
 import org.apache.log4j.Logger;
+import org.junit.After;
 import org.junit.Test;
 import org.messaginghub.messy.jms.mock.MockJMSConnection;
 import org.messaginghub.messy.jms.mock.MockJMSConnectionFactory;
@@ -48,18 +49,27 @@ public class JmsPoolConnectionFactoryTest {
 
     public final static Logger LOG = Logger.getLogger(JmsPoolConnectionFactoryTest.class);
 
+    private JmsPoolConnectionFactory cf;
+
+    @After
+    public void tearDown() {
+        try {
+            cf.stop();
+        } catch (Exception ex) {}
+    }
+
     @Test(timeout = 60000)
     public void testInstanceOf() throws  Exception {
-        JmsPoolConnectionFactory pcf = new JmsPoolConnectionFactory();
-        assertTrue(pcf instanceof QueueConnectionFactory);
-        assertTrue(pcf instanceof TopicConnectionFactory);
-        pcf.stop();
+        cf = new JmsPoolConnectionFactory();
+        assertTrue(cf instanceof QueueConnectionFactory);
+        assertTrue(cf instanceof TopicConnectionFactory);
+        cf.stop();
     }
 
     @Test(timeout = 60000)
     public void testClearAllConnections() throws Exception {
         MockJMSConnectionFactory mock = new MockJMSConnectionFactory();
-        JmsPoolConnectionFactory cf = new JmsPoolConnectionFactory();
+        cf = new JmsPoolConnectionFactory();
         cf.setConnectionFactory(mock);
         cf.setMaxConnections(3);
 
@@ -91,7 +101,7 @@ public class JmsPoolConnectionFactoryTest {
     @Test(timeout = 60000)
     public void testMaxConnectionsAreCreated() throws Exception {
         MockJMSConnectionFactory mock = new MockJMSConnectionFactory();
-        JmsPoolConnectionFactory cf = new JmsPoolConnectionFactory();
+        cf = new JmsPoolConnectionFactory();
         cf.setConnectionFactory(mock);
         cf.setMaxConnections(3);
 
@@ -111,7 +121,7 @@ public class JmsPoolConnectionFactoryTest {
     @Test(timeout = 60000)
     public void testFactoryStopStart() throws Exception {
         MockJMSConnectionFactory mock = new MockJMSConnectionFactory();
-        JmsPoolConnectionFactory cf = new JmsPoolConnectionFactory();
+        cf = new JmsPoolConnectionFactory();
         cf.setConnectionFactory(mock);
         cf.setMaxConnections(1);
 
@@ -135,7 +145,7 @@ public class JmsPoolConnectionFactoryTest {
     @Test(timeout = 60000)
     public void testConnectionsAreRotated() throws Exception {
         MockJMSConnectionFactory mock = new MockJMSConnectionFactory();
-        JmsPoolConnectionFactory cf = new JmsPoolConnectionFactory();
+        cf = new JmsPoolConnectionFactory();
         cf.setConnectionFactory(mock);
         cf.setMaxConnections(10);
 
@@ -158,7 +168,7 @@ public class JmsPoolConnectionFactoryTest {
     @Test(timeout = 60000)
     public void testConnectionsArePooled() throws Exception {
         MockJMSConnectionFactory mock = new MockJMSConnectionFactory();
-        JmsPoolConnectionFactory cf = new JmsPoolConnectionFactory();
+        cf = new JmsPoolConnectionFactory();
         cf.setConnectionFactory(mock);
         cf.setMaxConnections(1);
 
@@ -179,7 +189,7 @@ public class JmsPoolConnectionFactoryTest {
     public void testConnectionsArePooledAsyncCreate() throws Exception {
         final MockJMSConnectionFactory mock = new MockJMSConnectionFactory();
 
-        final JmsPoolConnectionFactory cf = new JmsPoolConnectionFactory();
+        cf = new JmsPoolConnectionFactory();
         cf.setConnectionFactory(mock);
         cf.setMaxConnections(1);
 
@@ -234,7 +244,7 @@ public class JmsPoolConnectionFactoryTest {
         final int numConnections = 2;
 
         final MockJMSConnectionFactory mock = new MockJMSConnectionFactory();
-        final JmsPoolConnectionFactory cf = new JmsPoolConnectionFactory();
+        cf = new JmsPoolConnectionFactory();
         cf.setConnectionFactory(mock);
         cf.setMaxConnections(numConnections);
         cf.setCreateConnectionOnStartup(createOnStart);

@@ -29,6 +29,7 @@ import javax.jms.IllegalStateException;
 import javax.jms.JMSException;
 import javax.jms.Session;
 
+import org.junit.After;
 import org.junit.Test;
 import org.messaginghub.messy.jms.mock.MockJMSConnectionFactory;
 import org.messaginghub.messy.jms.util.Wait;
@@ -42,13 +43,22 @@ public class JmsPoolConnectionTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(JmsPoolConnectionTest.class);
 
+    private JmsPoolConnectionFactory cf;
+
+    @After
+    public void tearDown() {
+        try {
+            cf.stop();
+        } catch (Exception ex) {}
+    }
+
     @Test(timeout = 60000)
     public void testSetClientIDTwiceWithSameID() throws Exception {
         LOG.debug("running testRepeatedSetClientIDCalls()");
 
         // test: call setClientID("newID") twice
         // this should be tolerated and not result in an exception
-        JmsPoolConnectionFactory cf = createPooledConnectionFactory();
+        cf = createPooledConnectionFactory();
         Connection conn = cf.createConnection();
         conn.setClientID("newID");
 
@@ -70,7 +80,7 @@ public class JmsPoolConnectionTest {
     public void testSetClientIDTwiceWithDifferentID() throws Exception {
         LOG.debug("running testRepeatedSetClientIDCalls()");
 
-        JmsPoolConnectionFactory cf = createPooledConnectionFactory();
+        cf = createPooledConnectionFactory();
         Connection conn = cf.createConnection();
 
         // test: call setClientID() twice with different IDs
@@ -93,7 +103,7 @@ public class JmsPoolConnectionTest {
     public void testSetClientIDAfterConnectionStart() throws Exception {
         LOG.debug("running testRepeatedSetClientIDCalls()");
 
-        JmsPoolConnectionFactory cf = createPooledConnectionFactory();
+        cf = createPooledConnectionFactory();
         Connection conn = cf.createConnection();
 
         // test: try to call setClientID() after start()
@@ -114,7 +124,7 @@ public class JmsPoolConnectionTest {
 
     protected JmsPoolConnectionFactory createPooledConnectionFactory() {
         MockJMSConnectionFactory mock = new MockJMSConnectionFactory();
-        JmsPoolConnectionFactory cf = new JmsPoolConnectionFactory();
+        cf = new JmsPoolConnectionFactory();
         cf.setConnectionFactory(mock);
         cf.setMaxConnections(1);
         LOG.debug("ConnectionFactory initialized.");
