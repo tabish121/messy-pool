@@ -25,6 +25,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.jms.Connection;
 import javax.jms.ConnectionConsumer;
@@ -47,11 +48,15 @@ import javax.jms.TopicConnection;
 import javax.jms.TopicSession;
 
 import org.messaginghub.messy.jms.util.JMSExceptionSupport;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Mock JMS Connection object used for test the JMS Pool
  */
 public class MockJMSConnection implements Connection, TopicConnection, QueueConnection, AutoCloseable {
+
+    private static final Logger LOG = LoggerFactory.getLogger(MockJMSConnection.class);
 
     private final Map<String, MockJMSSession> sessions = new ConcurrentHashMap<>();
     private final Map<MockJMSTemporaryDestination, MockJMSTemporaryDestination> tempDestinations = new ConcurrentHashMap<>();
@@ -62,6 +67,8 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
 
     private final AtomicLong sessionIdGenerator = new AtomicLong();
     private final AtomicLong tempDestIdGenerator = new AtomicLong();
+
+    private final AtomicReference<Exception> failureCause = new AtomicReference<>();
 
     private final ThreadPoolExecutor executor;
     private final UUID connectionId = UUID.randomUUID();
@@ -90,13 +97,13 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
 
     @Override
     public void start() throws JMSException {
-        checkClosed();
+        checkClosedOrFailed();
         ensureConnected();
     }
 
     @Override
     public void stop() throws JMSException {
-        checkClosed();
+        checkClosedOrFailed();
         ensureConnected();
     }
 
@@ -106,11 +113,8 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
             connected.set(false);
             started.set(false);
 
+            // Refuse any new work, and let any existing work complete.
             executor.shutdown();
-            try {
-                executor.awaitTermination(5, TimeUnit.SECONDS);
-            } catch (InterruptedException e) {
-            }
         }
     }
 
@@ -118,7 +122,7 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
 
     @Override
     public QueueSession createQueueSession(boolean transacted, int acknowledgeMode) throws JMSException {
-        checkClosed();
+        checkClosedOrFailed();
         ensureConnected();
         int ackMode = getSessionAcknowledgeMode(transacted, acknowledgeMode);
         MockJMSQueueSession result = new MockJMSQueueSession(getNextSessionId(), ackMode, this);
@@ -131,7 +135,7 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
 
     @Override
     public TopicSession createTopicSession(boolean transacted, int acknowledgeMode) throws JMSException {
-        checkClosed();
+        checkClosedOrFailed();
         ensureConnected();
         int ackMode = getSessionAcknowledgeMode(transacted, acknowledgeMode);
         MockJMSTopicSession result = new MockJMSTopicSession(getNextSessionId(), ackMode, this);
@@ -144,7 +148,7 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
 
     @Override
     public Session createSession(boolean transacted, int acknowledgeMode) throws JMSException {
-        checkClosed();
+        checkClosedOrFailed();
         ensureConnected();
         int ackMode = getSessionAcknowledgeMode(transacted, acknowledgeMode);
         MockJMSSession result = new MockJMSSession(getNextSessionId(), ackMode, this);
@@ -169,42 +173,42 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
 
     @Override
     public ConnectionConsumer createConnectionConsumer(Topic topic, String messageSelector, ServerSessionPool sessionPool, int maxMessages) throws JMSException {
-        checkClosed();
+        checkClosedOrFailed();
         ensureConnected();
         throw new JMSException("Not Supported");
     }
 
     @Override
     public ConnectionConsumer createConnectionConsumer(Destination destination, String messageSelector, ServerSessionPool sessionPool, int maxMessages) throws JMSException {
-        checkClosed();
+        checkClosedOrFailed();
         ensureConnected();
         throw new JMSException("Not Supported");
     }
 
     @Override
     public ConnectionConsumer createDurableConnectionConsumer(Topic topic, String subscriptionName, String messageSelector, ServerSessionPool sessionPool, int maxMessages) throws JMSException {
-        checkClosed();
+        checkClosedOrFailed();
         ensureConnected();
         throw new JMSException("Not Supported");
     }
 
     @Override
     public ConnectionConsumer createSharedDurableConnectionConsumer(Topic topic, String subscriptionName, String messageSelector, ServerSessionPool sessionPool, int maxMessages) throws JMSException {
-        checkClosed();
+        checkClosedOrFailed();
         ensureConnected();
         throw new JMSException("Not Supported");
     }
 
     @Override
     public ConnectionConsumer createSharedConnectionConsumer(Topic topic, String subscriptionName, String messageSelector, ServerSessionPool sessionPool, int maxMessages) throws JMSException {
-        checkClosed();
+        checkClosedOrFailed();
         ensureConnected();
         throw new JMSException("Not Supported");
     }
 
     @Override
     public ConnectionConsumer createConnectionConsumer(Queue queue, String messageSelector, ServerSessionPool sessionPool, int maxMessages) throws JMSException {
-        checkClosed();
+        checkClosedOrFailed();
         ensureConnected();
         throw new JMSException("Not Supported");
     }
@@ -213,13 +217,13 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
 
     @Override
     public String getClientID() throws JMSException {
-        checkClosed();
+        checkClosedOrFailed();
         return clientID;
     }
 
     @Override
     public void setClientID(String clientID) throws JMSException {
-        checkClosed();
+        checkClosedOrFailed();
 
         if (explicitClientID) {
             throw new IllegalStateException("The clientID has already been set");
@@ -250,34 +254,78 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
 
     @Override
     public ExceptionListener getExceptionListener() throws JMSException {
-        checkClosed();
+        checkClosedOrFailed();
         return exceptionListener;
     }
 
     @Override
     public void setExceptionListener(ExceptionListener listener) throws JMSException {
-        checkClosed();
+        checkClosedOrFailed();
         this.exceptionListener = listener;
     }
 
     public String getUsername() throws JMSException {
-        checkClosed();
+        checkClosedOrFailed();
         return user.getUsername();
     }
 
     public String getPassword() throws JMSException {
-        checkClosed();
+        checkClosedOrFailed();
         return user.getPassword();
     }
 
     public UUID getConnectionId() throws JMSException {
-        checkClosed();
+        checkClosedOrFailed();
         return connectionId;
     }
 
     public MockJMSUser getUser() throws JMSException {
-        checkClosed();
+        checkClosedOrFailed();
         return user;
+    }
+
+    //----- Mock Connection behavioral control -------------------------------//
+
+    public void injectConnectionFailure(Exception error) throws JMSException {
+        connectionFailed(error);
+
+        injectConnectionError(error);
+
+        if (!closed.get()) {
+            executor.execute(new Runnable() {
+                @Override
+                public void run() {
+                    // TODO - Close down all connection resources.
+                //                    try {
+                //                        shutdown(ex);
+                //                    } catch (JMSException e) {
+                //                        LOG.warn("Exception during connection cleanup, " + e, e);
+                //                    }
+
+                    // Don't accept any more connection work but allow all pending work
+                    // to complete in order to ensure notifications are sent to any blocked
+                    // resources.
+                    executor.shutdown();
+                }
+            });
+        }
+    }
+
+    public void injectConnectionError(Exception error) throws JMSException {
+        if (!closed.get() ) {
+            if (this.exceptionListener != null) {
+                final JMSException jmsError = JMSExceptionSupport.create(error);
+
+                executor.execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        MockJMSConnection.this.exceptionListener.onException(jmsError);
+                    }
+                });
+            } else {
+                LOG.debug("Async exception with no exception listener: {}", error, error);
+            }
+        }
     }
 
     //----- Internal Utility Methods -----------------------------------------//
@@ -321,10 +369,21 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
         return connected.get();
     }
 
-    private void checkClosed() throws JMSException {
-        if (closed.get()) {
-            throw new JMSException("Connection is closed");
+    protected void checkClosedOrFailed() throws JMSException {
+        checkClosed();
+        if (failureCause.get() != null) {
+            throw JMSExceptionSupport.create("Connection has failed", failureCause.get());
         }
+    }
+
+    protected void checkClosed() throws IllegalStateException {
+        if (closed.get()) {
+            throw new IllegalStateException("The Connection is closed");
+        }
+    }
+
+    protected void connectionFailed(Exception cause) {
+        failureCause .compareAndSet(null, cause);
     }
 
     MockJMSConnection initialize() throws JMSException {
@@ -368,7 +427,7 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
     }
 
     void deleteTemporaryDestination(MockJMSTemporaryDestination destination) throws JMSException {
-        checkClosed();
+        checkClosedOrFailed();
 
         try {
             for (MockJMSSession session : sessions.values()) {
