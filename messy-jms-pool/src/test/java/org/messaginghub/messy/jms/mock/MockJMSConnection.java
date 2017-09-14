@@ -58,6 +58,7 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
 
     private static final Logger LOG = LoggerFactory.getLogger(MockJMSConnection.class);
 
+    private final MockJMSConnectionStats stats = new MockJMSConnectionStats();
     private final Map<String, MockJMSSession> sessions = new ConcurrentHashMap<>();
     private final Map<MockJMSTemporaryDestination, MockJMSTemporaryDestination> tempDestinations = new ConcurrentHashMap<>();
 
@@ -284,6 +285,10 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
         return user;
     }
 
+    public MockJMSConnectionStats getConnectionStats() {
+        return stats;
+    }
+
     //----- Mock Connection behavioral control -------------------------------//
 
     public void injectConnectionFailure(Exception error) throws JMSException {
@@ -339,6 +344,7 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
         MockJMSTemporaryQueue queue = new MockJMSTemporaryQueue(destinationName);
         tempDestinations.put(queue, queue);
         queue.setConnection(this);
+        stats.temporaryDestinationCreated(queue);
         return queue;
     }
 
@@ -347,6 +353,7 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
         MockJMSTemporaryTopic topic = new MockJMSTemporaryTopic(destinationName);
         tempDestinations.put(topic, topic);
         topic.setConnection(this);
+        stats.temporaryDestinationCreated(topic);
         return topic;
     }
 
@@ -436,6 +443,7 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
                 }
             }
 
+            stats.temporaryDestinationDestroyed(destination);
             tempDestinations.remove(destination);
         } catch (Exception e) {
             throw JMSExceptionSupport.create(e);

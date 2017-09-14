@@ -36,7 +36,6 @@ import javax.jms.QueueConnectionFactory;
 import javax.jms.TopicConnectionFactory;
 
 import org.apache.log4j.Logger;
-import org.junit.After;
 import org.junit.Test;
 import org.messaginghub.messy.jms.mock.MockJMSConnection;
 import org.messaginghub.messy.jms.mock.MockJMSConnectionFactory;
@@ -45,18 +44,9 @@ import org.messaginghub.messy.jms.util.Wait;
 /**
  * Performs basic tests on the JmsPoolConnectionFactory implementation.
  */
-public class JmsPoolConnectionFactoryTest {
+public class JmsPoolConnectionFactoryTest extends JmsPoolTestSupport {
 
     public final static Logger LOG = Logger.getLogger(JmsPoolConnectionFactoryTest.class);
-
-    private JmsPoolConnectionFactory cf;
-
-    @After
-    public void tearDown() {
-        try {
-            cf.stop();
-        } catch (Exception ex) {}
-    }
 
     @Test(timeout = 60000)
     public void testInstanceOf() throws  Exception {

@@ -27,33 +27,9 @@ import javax.jms.Session;
 import javax.jms.Topic;
 import javax.jms.TopicSession;
 
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
-import org.messaginghub.messy.jms.mock.MockJMSConnectionFactory;
 
-public class JmsPoolWrappedProducersTest {
-
-    private MockJMSConnectionFactory factory;
-    private JmsPoolConnectionFactory pooledFactory;
-
-    @Before
-    public void setUp() throws Exception {
-        factory = new MockJMSConnectionFactory();
-        pooledFactory = new JmsPoolConnectionFactory();
-        pooledFactory.setConnectionFactory(factory);
-        pooledFactory.setMaxConnections(1);
-        pooledFactory.setBlockIfSessionPoolIsFull(false);
-    }
-
-    @After
-    public void tearDown() throws Exception {
-        try {
-            pooledFactory.stop();
-        } catch (Exception ex) {
-            // ignored
-        }
-    }
+public class JmsPoolWrappedProducersTest extends JmsPoolTestSupport {
 
     @Test(timeout = 60000)
     public void testCreateMessageProducerWithAnonymousProducerEnabled() throws Exception {
@@ -66,9 +42,9 @@ public class JmsPoolWrappedProducersTest {
     }
 
     private void doTestCreateMessageProducer(boolean useAnonymousProducers) throws JMSException {
-        pooledFactory.setUseAnonymousProducers(useAnonymousProducers);
+        cf.setUseAnonymousProducers(useAnonymousProducers);
 
-        JmsPoolConnection connection = (JmsPoolConnection) pooledFactory.createConnection();
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createConnection();
         Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
 
         Queue queue1 = session.createTemporaryQueue();
@@ -97,9 +73,9 @@ public class JmsPoolWrappedProducersTest {
     }
 
     private void doTestCreateTopicPublisher(boolean useAnonymousProducers) throws JMSException {
-        pooledFactory.setUseAnonymousProducers(useAnonymousProducers);
+        cf.setUseAnonymousProducers(useAnonymousProducers);
 
-        JmsPoolConnection connection = (JmsPoolConnection) pooledFactory.createConnection();
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createConnection();
         TopicSession session = connection.createTopicSession(false, Session.AUTO_ACKNOWLEDGE);
 
         Topic topic1 = session.createTopic("Topic-1");
@@ -128,9 +104,9 @@ public class JmsPoolWrappedProducersTest {
     }
 
     private void doTestCreateQueueSender(boolean useAnonymousProducers) throws JMSException {
-        pooledFactory.setUseAnonymousProducers(useAnonymousProducers);
+        cf.setUseAnonymousProducers(useAnonymousProducers);
 
-        JmsPoolConnection connection = (JmsPoolConnection) pooledFactory.createConnection();
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createConnection();
         QueueSession session = connection.createQueueSession(false, Session.AUTO_ACKNOWLEDGE);
 
         Queue queue1 = session.createTemporaryQueue();
@@ -150,7 +126,7 @@ public class JmsPoolWrappedProducersTest {
 
     @Test(timeout = 60000)
     public void testSendThrowsWhenProducerHasExplicitDestination() throws Exception {
-        JmsPoolConnection connection = (JmsPoolConnection) pooledFactory.createConnection();
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createConnection();
         Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
 
         Queue queue1 = session.createTemporaryQueue();

@@ -16,20 +16,11 @@
  */
 package org.messaginghub.messy.jms;
 
-import java.util.Set;
-
-import javax.jms.JMSException;
-import javax.management.MalformedObjectNameException;
-import javax.management.ObjectName;
-
-import org.apache.activemq.broker.BrokerService;
-import org.apache.activemq.broker.jmx.BrokerViewMBean;
-import org.apache.activemq.broker.jmx.ConnectorViewMBean;
-import org.apache.activemq.broker.jmx.QueueViewMBean;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.rules.TestName;
+import org.messaginghub.messy.jms.mock.MockJMSConnectionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,66 +30,31 @@ public class JmsPoolTestSupport {
 
     protected static final Logger LOG = LoggerFactory.getLogger(JmsPoolTestSupport.class);
 
-    protected BrokerService brokerService;
+    protected MockJMSConnectionFactory factory;
+    protected JmsPoolConnectionFactory cf;
 
     @Before
     public void setUp() throws Exception {
-        LOG.info("========== start " + getTestName() + " ==========");
+        LOG.info("========== start test: " + getTestName() + " ==========");
+
+        factory = new MockJMSConnectionFactory();
+        cf = new JmsPoolConnectionFactory();
+        cf.setConnectionFactory(factory);
+        cf.setMaxConnections(1);
     }
 
     @After
     public void tearDown() throws Exception {
-        if (brokerService != null) {
-            try {
-                brokerService.stop();
-                brokerService.waitUntilStopped();
-                brokerService = null;
-            } catch (Exception ex) {
-                LOG.warn("Suppress error on shutdown: {}", ex);
-            }
+        try {
+            cf.stop();
+        } catch (Exception ex) {
+            // ignored
         }
 
-        LOG.info("========== tearDown " + getTestName() + " ==========");
+        LOG.info("========== finished test " + getTestName() + " ==========");
     }
 
     public String getTestName() {
         return name.getMethodName();
-    }
-
-    protected BrokerViewMBean getProxyToBroker() throws MalformedObjectNameException, JMSException {
-        ObjectName brokerViewMBean = new ObjectName(
-            "org.apache.activemq:type=Broker,brokerName=" + brokerService.getBrokerName());
-        BrokerViewMBean proxy = (BrokerViewMBean) brokerService.getManagementContext()
-                .newProxyInstance(brokerViewMBean, BrokerViewMBean.class, true);
-        return proxy;
-    }
-
-    protected ConnectorViewMBean getProxyToConnectionView(String connectionType) throws Exception {
-        ObjectName connectorQuery = new ObjectName(
-            "org.apache.activemq:type=Broker,brokerName=" + brokerService.getBrokerName() + ",connector=clientConnectors,connectorName="+connectionType+"_//*");
-
-        Set<ObjectName> results = brokerService.getManagementContext().queryNames(connectorQuery, null);
-
-        if (results == null || results.isEmpty() || results.size() > 1) {
-            throw new Exception("Unable to find the exact Connector instance.");
-        }
-
-        ConnectorViewMBean proxy = (ConnectorViewMBean) brokerService.getManagementContext()
-                .newProxyInstance(results.iterator().next(), ConnectorViewMBean.class, true);
-        return proxy;
-    }
-
-    protected QueueViewMBean getProxyToQueue(String name) throws MalformedObjectNameException, JMSException {
-        ObjectName queueViewMBeanName = new ObjectName("org.apache.activemq:type=Broker,brokerName=" + brokerService.getBrokerName() + ",destinationType=Queue,destinationName="+name);
-        QueueViewMBean proxy = (QueueViewMBean) brokerService.getManagementContext()
-                .newProxyInstance(queueViewMBeanName, QueueViewMBean.class, true);
-        return proxy;
-    }
-
-    protected QueueViewMBean getProxyToTopic(String name) throws MalformedObjectNameException, JMSException {
-        ObjectName queueViewMBeanName = new ObjectName("org.apache.activemq:type=Broker,brokerName=" + brokerService.getBrokerName() + ",destinationType=Topic,destinationName="+name);
-        QueueViewMBean proxy = (QueueViewMBean) brokerService.getManagementContext()
-                .newProxyInstance(queueViewMBeanName, QueueViewMBean.class, true);
-        return proxy;
     }
 }

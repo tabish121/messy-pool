@@ -31,7 +31,6 @@ import javax.jms.MessageProducer;
 import javax.jms.Queue;
 import javax.jms.Session;
 
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -40,28 +39,19 @@ import org.messaginghub.messy.jms.mock.MockJMSConnectionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class JmsPoolReconnectOnFailureTest {
+public class JmsPoolReconnectOnFailureTest extends JmsPoolTestSupport {
 
     private static final Logger LOG = LoggerFactory.getLogger(JmsPoolReconnectOnFailureTest.class);
 
-    protected MockJMSConnectionFactory mock;
-    protected JmsPoolConnectionFactory cf;
-
+    @Override
     @Before
     public void setUp() throws java.lang.Exception {
-        mock = new MockJMSConnectionFactory();
+        factory = new MockJMSConnectionFactory();
 
         cf = new JmsPoolConnectionFactory();
-        cf.setConnectionFactory(mock);
+        cf.setConnectionFactory(factory);
         cf.setMaxConnections(1);
         cf.setReconnectOnException(true);
-    }
-
-    @After
-    public void tearDown() {
-        try {
-            cf.stop();
-        } catch (Exception ex) {}
     }
 
     @Ignore("Fails for unknown reason")

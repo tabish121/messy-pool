@@ -29,7 +29,6 @@ import javax.jms.IllegalStateException;
 import javax.jms.JMSException;
 import javax.jms.Session;
 
-import org.junit.After;
 import org.junit.Test;
 import org.messaginghub.messy.jms.mock.MockJMSConnectionFactory;
 import org.messaginghub.messy.jms.util.Wait;
@@ -39,33 +38,23 @@ import org.slf4j.LoggerFactory;
 /**
  * A couple of tests against the PooledConnection class.
  */
-public class JmsPoolConnectionTest {
+public class JmsPoolConnectionTest extends JmsPoolTestSupport {
 
     private static final Logger LOG = LoggerFactory.getLogger(JmsPoolConnectionTest.class);
-
-    private JmsPoolConnectionFactory cf;
-
-    @After
-    public void tearDown() {
-        try {
-            cf.stop();
-        } catch (Exception ex) {}
-    }
 
     @Test(timeout = 60000)
     public void testSetClientIDTwiceWithSameID() throws Exception {
         LOG.debug("running testRepeatedSetClientIDCalls()");
+        Connection connection = cf.createConnection();
 
         // test: call setClientID("newID") twice
         // this should be tolerated and not result in an exception
-        cf = createPooledConnectionFactory();
-        Connection conn = cf.createConnection();
-        conn.setClientID("newID");
+        connection.setClientID("newID");
 
         try {
-            conn.setClientID("newID");
-            conn.start();
-            conn.close();
+            connection.setClientID("newID");
+            connection.start();
+            connection.close();
         } catch (IllegalStateException ise) {
             LOG.error("Repeated calls to newID2.setClientID(\"newID\") caused " + ise.getMessage());
             fail("Repeated calls to newID2.setClientID(\"newID\") caused " + ise.getMessage());
@@ -80,19 +69,18 @@ public class JmsPoolConnectionTest {
     public void testSetClientIDTwiceWithDifferentID() throws Exception {
         LOG.debug("running testRepeatedSetClientIDCalls()");
 
-        cf = createPooledConnectionFactory();
-        Connection conn = cf.createConnection();
+        Connection connection = cf.createConnection();
 
         // test: call setClientID() twice with different IDs
         // this should result in an IllegalStateException
-        conn.setClientID("newID1");
+        connection.setClientID("newID1");
         try {
-            conn.setClientID("newID2");
+            connection.setClientID("newID2");
             fail("calling Connection.setClientID() twice with different clientID must raise an IllegalStateException");
         } catch (IllegalStateException ise) {
             LOG.debug("Correctly received " + ise);
         } finally {
-            conn.close();
+            connection.close();
             cf.stop();
         }
 
@@ -103,32 +91,22 @@ public class JmsPoolConnectionTest {
     public void testSetClientIDAfterConnectionStart() throws Exception {
         LOG.debug("running testRepeatedSetClientIDCalls()");
 
-        cf = createPooledConnectionFactory();
-        Connection conn = cf.createConnection();
+        Connection connection = cf.createConnection();
 
         // test: try to call setClientID() after start()
         // should result in an exception
         try {
-            conn.start();
-            conn.setClientID("newID3");
+            connection.start();
+            connection.setClientID("newID3");
             fail("Calling setClientID() after start() mut raise a JMSException.");
         } catch (IllegalStateException ise) {
             LOG.debug("Correctly received " + ise);
         } finally {
-            conn.close();
+            connection.close();
             cf.stop();
         }
 
         LOG.debug("Test finished.");
-    }
-
-    protected JmsPoolConnectionFactory createPooledConnectionFactory() {
-        MockJMSConnectionFactory mock = new MockJMSConnectionFactory();
-        cf = new JmsPoolConnectionFactory();
-        cf.setConnectionFactory(mock);
-        cf.setMaxConnections(1);
-        LOG.debug("ConnectionFactory initialized.");
-        return cf;
     }
 
     /**

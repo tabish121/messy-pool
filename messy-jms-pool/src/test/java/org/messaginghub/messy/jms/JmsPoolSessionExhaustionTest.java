@@ -26,36 +26,25 @@ import javax.jms.IllegalStateException;
 import javax.jms.JMSException;
 import javax.jms.Session;
 
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.messaginghub.messy.jms.mock.MockJMSConnectionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class JmsPoolSessionExhaustionTest {
+public class JmsPoolSessionExhaustionTest extends JmsPoolTestSupport {
 
     public final static Logger LOG = LoggerFactory.getLogger(JmsPoolSessionExhaustionTest.class);
 
-    private MockJMSConnectionFactory factory;
-    private JmsPoolConnectionFactory pooledFactory;
-
-    @Before
+    @Override
+	@Before
     public void setUp() throws Exception {
         factory = new MockJMSConnectionFactory();
-        pooledFactory = new JmsPoolConnectionFactory();
-        pooledFactory.setConnectionFactory(factory);
-        pooledFactory.setMaxConnections(1);
-        pooledFactory.setBlockIfSessionPoolIsFull(false);
-        pooledFactory.setMaximumActiveSessionPerConnection(1);
-    }
-
-    @After
-    public void tearDown() throws Exception {
-        try {
-            pooledFactory.stop();
-        } catch (Exception ex) {
-        }
+        cf = new JmsPoolConnectionFactory();
+        cf.setConnectionFactory(factory);
+        cf.setMaxConnections(1);
+        cf.setBlockIfSessionPoolIsFull(false);
+        cf.setMaximumActiveSessionPerConnection(1);
     }
 
     @Test(timeout = 60000)
@@ -70,14 +59,14 @@ public class JmsPoolSessionExhaustionTest {
 
     private void doTestCreateSessionThrowsWhenSessionPoolExhaustedSharedConnection(boolean timeout) throws JMSException {
         if (timeout) {
-            pooledFactory.setBlockIfSessionPoolIsFull(true);
-            pooledFactory.setBlockIfSessionPoolIsFullTimeout(50);
+            cf.setBlockIfSessionPoolIsFull(true);
+            cf.setBlockIfSessionPoolIsFullTimeout(50);
         } else {
-            pooledFactory.setBlockIfSessionPoolIsFull(false);
+            cf.setBlockIfSessionPoolIsFull(false);
         }
 
-        Connection connection1 = pooledFactory.createConnection();
-        Connection connection2 = pooledFactory.createConnection();
+        Connection connection1 = cf.createConnection();
+        Connection connection2 = cf.createConnection();
 
         // One Connections should be able to create one session
         Session session1 = connection1.createSession();
@@ -128,16 +117,16 @@ public class JmsPoolSessionExhaustionTest {
 
     private void doTestCreateSessionThrowsWhenSessionPoolExhaustedNonSharedConnection(boolean timeout) throws JMSException {
 
-        pooledFactory.setMaxConnections(2);
+        cf.setMaxConnections(2);
         if (timeout) {
-            pooledFactory.setBlockIfSessionPoolIsFull(true);
-            pooledFactory.setBlockIfSessionPoolIsFullTimeout(50);
+            cf.setBlockIfSessionPoolIsFull(true);
+            cf.setBlockIfSessionPoolIsFullTimeout(50);
         } else {
-            pooledFactory.setBlockIfSessionPoolIsFull(false);
+            cf.setBlockIfSessionPoolIsFull(false);
         }
 
-        Connection connection1 = pooledFactory.createConnection();
-        Connection connection2 = pooledFactory.createConnection();
+        Connection connection1 = cf.createConnection();
+        Connection connection2 = cf.createConnection();
 
         // Both Connections should be able to create one session
         Session session1 = connection1.createSession();

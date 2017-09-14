@@ -32,10 +32,8 @@ import javax.jms.Connection;
 import javax.jms.JMSException;
 import javax.jms.Session;
 
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.messaginghub.messy.jms.mock.MockJMSConnectionFactory;
 import org.messaginghub.messy.jms.util.Wait;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,36 +43,28 @@ import org.slf4j.LoggerFactory;
  * (maximumActive). When using setBlockIfSessionPoolIsFull(true) on the ConnectionFactory, further requests for sessions
  * should block. If it does not block, its a bug.
  */
-public class JmsPoolConnectionFactoryMaximumActiveTest {
+public class JmsPoolConnectionFactoryMaximumActiveTest extends JmsPoolTestSupport {
 
     public final static Logger LOG = LoggerFactory.getLogger(JmsPoolConnectionFactoryMaximumActiveTest.class);
-    public static Connection connection = null;
 
+    private static Connection connection = null;
     private static ConcurrentMap<Integer, Session> sessions = new ConcurrentHashMap<Integer, Session>();
-
-    private JmsPoolConnectionFactory cf;
-
-    @After
-    public void tearDown() {
-        try {
-            cf.stop();
-        } catch (Exception ex) {}
-    }
 
     public static void addSession(Session s) {
         sessions.put(s.hashCode(), s);
     }
 
+    @Override
     @Before
     public void setUp() throws Exception {
+        super.setUp();
         sessions.clear();
     }
 
     @Test(timeout = 60000)
     public void testCreateSessionBlocksWhenMaxSessionsLoanedOutUntilReturned() throws Exception {
-        MockJMSConnectionFactory mock = new MockJMSConnectionFactory();
         cf = new JmsPoolConnectionFactory();
-        cf.setConnectionFactory(mock);
+        cf.setConnectionFactory(factory);
         cf.setMaxConnections(3);
         cf.setMaximumActiveSessionPerConnection(1);
         cf.setBlockIfSessionPoolIsFull(true);
@@ -97,8 +87,6 @@ public class JmsPoolConnectionFactoryMaximumActiveTest {
         // Take all threads down
         executor.shutdown();
         executor.awaitTermination(10, TimeUnit.SECONDS);
-
-        cf.stop();
     }
 
     /**
@@ -112,10 +100,8 @@ public class JmsPoolConnectionFactoryMaximumActiveTest {
      */
     @Test(timeout = 60000)
     public void testCreateSessionBlocksWhenMaxSessionsLoanedOut() throws Exception {
-        MockJMSConnectionFactory mock = new MockJMSConnectionFactory();
-
         cf = new JmsPoolConnectionFactory();
-        cf.setConnectionFactory(mock);
+        cf.setConnectionFactory(factory);
         cf.setMaxConnections(3);
         cf.setMaximumActiveSessionPerConnection(1);
         cf.setBlockIfSessionPoolIsFull(true);

@@ -27,7 +27,6 @@ import javax.jms.MessageProducer;
 import javax.jms.Queue;
 import javax.jms.Session;
 
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.messaginghub.messy.jms.mock.MockJMSConnectionFactory;
@@ -38,33 +37,25 @@ import org.slf4j.LoggerFactory;
 /**
  * Test for handling of cases of JMSSecurityException on create of Connection
  */
-public class JmsPoolConnectionSecurityExceptionTest {
+public class JmsPoolConnectionSecurityExceptionTest extends JmsPoolTestSupport {
 
     private static final Logger LOG = LoggerFactory.getLogger(JmsPoolConnectionSecurityExceptionTest.class);
 
-    private MockJMSConnectionFactory mock;
-    private JmsPoolConnectionFactory cf;
     private MockJMSUser user;
 
+    @Override
     @Before
     public void setUp() {
         user = new MockJMSUser("admin", "admin");
 
-        mock = new MockJMSConnectionFactory();
-        mock.addUser(user);
+        factory = new MockJMSConnectionFactory();
+        factory.addUser(user);
 
         cf = new JmsPoolConnectionFactory();
-        cf.setConnectionFactory(mock);
+        cf.setConnectionFactory(factory);
         cf.setMaxConnections(1);
         cf.setCreateConnectionOnStartup(false);
         cf.start();
-    }
-
-    @After
-    public void tearDown() {
-        try {
-            cf.stop();
-        } catch (Exception ex) {}
     }
 
     @Test
@@ -110,7 +101,7 @@ public class JmsPoolConnectionSecurityExceptionTest {
     @Test
     public void testDefferedConectionAuthenticationError() throws JMSException {
         // Don't throw on create fail on connection start
-        mock.setDeferAuthenticationToConnection(true);
+        factory.setDeferAuthenticationToConnection(true);
 
         Connection connection = null;
         try {
@@ -155,7 +146,7 @@ public class JmsPoolConnectionSecurityExceptionTest {
     @Test
     public void testFailureGetsNewConnectionOnRetryBigPool() throws JMSException {
         // Don't throw on create fail on connection start
-        mock.setDeferAuthenticationToConnection(true);
+        factory.setDeferAuthenticationToConnection(true);
         cf.setMaxConnections(10);
 
         Connection connection1 = cf.createConnection("invalid", "credentials");

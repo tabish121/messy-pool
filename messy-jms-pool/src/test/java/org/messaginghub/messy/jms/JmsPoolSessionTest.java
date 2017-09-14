@@ -22,37 +22,27 @@ import static org.junit.Assert.fail;
 import javax.jms.IllegalStateException;
 import javax.jms.Session;
 
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.messaginghub.messy.jms.mock.MockJMSConnectionFactory;
 
-public class JmsPoolSessionTest {
+public class JmsPoolSessionTest extends JmsPoolTestSupport {
 
-    private MockJMSConnectionFactory factory;
-    private JmsPoolConnectionFactory pooledFactory;
+    private JmsPoolConnectionFactory cf;
 
-    @Before
+    @Override
+	@Before
     public void setUp() throws Exception {
         factory = new MockJMSConnectionFactory();
-        pooledFactory = new JmsPoolConnectionFactory();
-        pooledFactory.setConnectionFactory(factory);
-        pooledFactory.setMaxConnections(1);
-        pooledFactory.setBlockIfSessionPoolIsFull(false);
-    }
-
-    @After
-    public void tearDown() throws Exception {
-        try {
-            pooledFactory.stop();
-        } catch (Exception ex) {
-            // ignored
-        }
+        cf = new JmsPoolConnectionFactory();
+        cf.setConnectionFactory(factory);
+        cf.setMaxConnections(1);
+        cf.setBlockIfSessionPoolIsFull(false);
     }
 
     @Test(timeout = 60000)
     public void testPooledSessionStatsOneSession() throws Exception {
-        JmsPoolConnection connection = (JmsPoolConnection) pooledFactory.createConnection();
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createConnection();
 
         assertEquals(0, connection.getNumActiveSessions());
 
@@ -71,9 +61,9 @@ public class JmsPoolSessionTest {
 
     @Test(timeout = 60000)
     public void testPooledSessionStatsOneSessionWithSessionLimit() throws Exception {
-        pooledFactory.setMaximumActiveSessionPerConnection(1);
+        cf.setMaximumActiveSessionPerConnection(1);
 
-        JmsPoolConnection connection = (JmsPoolConnection) pooledFactory.createConnection();
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createConnection();
 
         assertEquals(0, connection.getNumActiveSessions());
 
@@ -105,7 +95,7 @@ public class JmsPoolSessionTest {
 
     @Test(timeout = 60000)
     public void testPooledSessionStatsTwoSessions() throws Exception {
-        JmsPoolConnection connection = (JmsPoolConnection) pooledFactory.createConnection();
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createConnection();
 
         assertEquals(0, connection.getNumActiveSessions());
 
