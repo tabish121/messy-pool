@@ -275,6 +275,11 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
         return connectionId;
     }
 
+    public MockJMSUser getUser() throws JMSException {
+        checkClosed();
+        return user;
+    }
+
     //----- Internal Utility Methods -----------------------------------------//
 
     protected String getNextSessionId() {

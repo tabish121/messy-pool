@@ -44,11 +44,14 @@ public class MockJMSMessageProducer implements MessageProducer, AutoCloseable {
     protected boolean disableMessageId;
     protected boolean disableTimestamp;
 
-    public MockJMSMessageProducer(MockJMSSession session, String producerId, MockJMSDestination destination) {
+    public MockJMSMessageProducer(MockJMSSession session, String producerId, MockJMSDestination destination) throws JMSException {
         this.session = session;
         this.producerId = producerId;
         this.destination = destination;
         this.anonymousProducer = destination == null;
+
+        MockJMSConnection connection = session.getConnection();
+        connection.getUser().checkCanProduce(destination);
 
         session.add(this);
     }

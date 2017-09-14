@@ -45,6 +45,9 @@ public class MockJMSMessageConsumer implements MessageConsumer, AutoCloseable {
         this.messageSelector = messageSelector;
         this.noLocal = noLocal;
 
+        MockJMSConnection connection = session.getConnection();
+        connection.getUser().checkCanConsume(destination);
+
         session.add(this);
     }
 

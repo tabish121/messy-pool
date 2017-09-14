@@ -16,6 +16,11 @@
  */
 package org.messaginghub.messy.jms.mock;
 
+import java.util.HashSet;
+import java.util.Set;
+
+import javax.jms.JMSSecurityException;
+
 /**
  * Mock JMS User object containing authentication and authorization data.
  */
@@ -27,17 +32,22 @@ public class MockJMSUser {
 
     private final String username;
     private final String password;
-    private final boolean valid;
+    private final boolean authenticated;
     private final String failureCause;
 
-    private boolean canProduce = true;
-    private boolean canConsume = true;
-    private boolean canBrowse = true;
+    private boolean canConsumeAll = true;
+    private boolean canProduceAll = true;
+    private boolean canProducerAnonymously = true;
+    private boolean canBrowseAll = true;
+
+    private final Set<String> consumableDestinations = new HashSet<>();
+    private final Set<String> writableDestinations = new HashSet<>();
+    private final Set<String> browsableDestinations = new HashSet<>();
 
     MockJMSUser(boolean valid, String cause) {
         this.username = null;
         this.password = null;
-        this.valid = valid;
+        this.authenticated = valid;
         this.failureCause = cause;
     }
 
@@ -52,7 +62,7 @@ public class MockJMSUser {
 
         this.username = username;
         this.password = password;
-        this.valid = true;
+        this.authenticated = true;
         this.failureCause = null;
     }
 
@@ -64,36 +74,85 @@ public class MockJMSUser {
         return password;
     }
 
-    public boolean isCanProduce() {
-        return canProduce;
-    }
-
-    public void setCanProduce(boolean canProduce) {
-        this.canProduce = canProduce;
-    }
-
-    public boolean isCanConsume() {
-        return canConsume;
-    }
-
-    public void setCanConsume(boolean canConsume) {
-        this.canConsume = canConsume;
-    }
-
-    public boolean isCanBrowse() {
-        return canBrowse;
-    }
-
-    public void setCanBrowse(boolean canBrowse) {
-        this.canBrowse = canBrowse;
-    }
-
     public boolean isValid() {
-        return valid;
+        return authenticated;
     }
 
     public String getFailureCause() {
         return failureCause;
+    }
+
+    public void addConsumableDestination(String name) {
+        this.setCanConsumeAll(false);
+        this.consumableDestinations.add(name);
+    }
+
+    public void addWritableDestination(String name) {
+        this.setCanProduceAll(false);
+        this.writableDestinations.add(name);
+    }
+
+    public void addBrowsableDestination(String name) {
+        this.canBrowseAll = false;
+        this.browsableDestinations.add(name);
+    }
+
+    public void checkCanConsume(MockJMSDestination destination) throws JMSSecurityException {
+        if (!isCanConsumeAll() && !consumableDestinations.contains(destination.getName())) {
+            throw new JMSSecurityException("User " + username + " cannot consume from destination: " + destination.getName());
+        }
+    }
+
+    public void checkCanProduce(MockJMSDestination destination) throws JMSSecurityException {
+        if (destination == null) {
+            if (isCanProducerAnonymously()) {
+                return;
+            } else {
+               throw new JMSSecurityException("User " + username + " not allowed for create anonymous produders.");
+            }
+        }
+
+        if (!isCanProduceAll() && !writableDestinations.contains(destination.getName())) {
+            throw new JMSSecurityException("User " + username + " cannot read from destination: " + destination.getName());
+        }
+    }
+
+    public void checkCanBrowse(MockJMSDestination destination) throws JMSSecurityException {
+        if (!isCanBrowseAll() && !browsableDestinations.contains(destination.getName())) {
+            throw new JMSSecurityException("User " + username + " cannot browse destination: " + destination.getName());
+        }
+    }
+
+    public boolean isCanProduceAll() {
+        return canProduceAll;
+    }
+
+    public void setCanProduceAll(boolean canProduceAll) {
+        this.canProduceAll = canProduceAll;
+    }
+
+    public boolean isCanProducerAnonymously() {
+        return canProducerAnonymously;
+    }
+
+    public void setCanProducerAnonymously(boolean canProducerAnonymously) {
+        this.canProducerAnonymously = canProducerAnonymously;
+    }
+
+    public boolean isCanConsumeAll() {
+        return canConsumeAll;
+    }
+
+    public void setCanConsumeAll(boolean canConsumeAll) {
+        this.canConsumeAll = canConsumeAll;
+    }
+
+    public boolean isCanBrowseAll() {
+        return canBrowseAll;
+    }
+
+    public void setCanBrowseAll(boolean canBrowseAll) {
+        this.canBrowseAll = canBrowseAll;
     }
 
     @Override

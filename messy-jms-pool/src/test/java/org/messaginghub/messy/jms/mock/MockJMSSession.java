@@ -144,6 +144,10 @@ public class MockJMSSession implements Session, QueueSession, TopicSession, Auto
         return sessionId;
     }
 
+    public MockJMSConnection getConnection() {
+        return connection;
+    }
+
     //----- Message Factory Methods ------------------------------------------//
 
     @Override

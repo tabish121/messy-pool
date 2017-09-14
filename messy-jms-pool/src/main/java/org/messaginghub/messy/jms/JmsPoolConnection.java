@@ -26,6 +26,7 @@ import javax.jms.Destination;
 import javax.jms.ExceptionListener;
 import javax.jms.IllegalStateException;
 import javax.jms.JMSException;
+import javax.jms.JMSSecurityException;
 import javax.jms.Queue;
 import javax.jms.QueueConnection;
 import javax.jms.QueueSession;
@@ -52,7 +53,7 @@ import org.slf4j.LoggerFactory;
  */
 public class JmsPoolConnection implements TopicConnection, QueueConnection, JmsPoolSessionEventListener {
 
-    private static final transient Logger LOG = LoggerFactory.getLogger(JmsPoolConnection.class);
+    private static final Logger LOG = LoggerFactory.getLogger(JmsPoolConnection.class);
 
     protected PooledConnection connection;
 
@@ -95,13 +96,65 @@ public class JmsPoolConnection implements TopicConnection, QueueConnection, JmsP
     @Override
     public void start() throws JMSException {
         assertNotClosed();
-        connection.start();
+        try {
+            connection.start();
+        } catch (JMSSecurityException jmsse) {
+            LOG.warn("Security exception on start, connection will be closed");
+            if (this.connection != null) {
+                this.connection.close();
+                this.connection.decrementReferenceCount();
+                this.connection = null;
+            }
+            throw jmsse;
+        }
     }
 
     @Override
     public void stop() throws JMSException {
         stopped = true;
     }
+
+    @Override
+    public ConnectionMetaData getMetaData() throws JMSException {
+        return getConnection().getMetaData();
+    }
+
+    @Override
+    public ExceptionListener getExceptionListener() throws JMSException {
+        return connection.getParentExceptionListener();
+    }
+
+    @Override
+    public void setExceptionListener(ExceptionListener exceptionListener) throws JMSException {
+        connection.setParentExceptionListener(exceptionListener);
+    }
+
+    @Override
+    public String getClientID() throws JMSException {
+        return getConnection().getClientID();
+    }
+
+    @Override
+    public void setClientID(String clientID) throws JMSException {
+        // ignore repeated calls to setClientID() with the same client id
+        // this could happen when a JMS component such as Spring that uses a
+        // Pooled JMS ConnectionFactory when it shuts down and reinitializes.
+        if (this.getConnection().getClientID() == null || !this.getClientID().equals(clientID)) {
+            try {
+                getConnection().setClientID(clientID);
+            } catch (JMSSecurityException jmsse) {
+                LOG.warn("Security exception on setClientID, connection will be closed");
+                if (this.connection != null) {
+                    this.connection.close();
+                    this.connection.decrementReferenceCount();
+                    this.connection = null;
+                }
+                throw jmsse;
+            }
+        }
+    }
+
+    //----- ConnectionConsumer factory methods -------------------------------//
 
     @Override
     public ConnectionConsumer createConnectionConsumer(Destination destination, String selector, ServerSessionPool serverSessionPool, int maxMessages) throws JMSException {
@@ -116,36 +169,6 @@ public class JmsPoolConnection implements TopicConnection, QueueConnection, JmsP
     @Override
     public ConnectionConsumer createDurableConnectionConsumer(Topic topic, String selector, String s1, ServerSessionPool serverSessionPool, int i) throws JMSException {
         return getConnection().createDurableConnectionConsumer(topic, selector, s1, serverSessionPool, i);
-    }
-
-    @Override
-    public String getClientID() throws JMSException {
-        return getConnection().getClientID();
-    }
-
-    @Override
-    public ExceptionListener getExceptionListener() throws JMSException {
-        return connection.getParentExceptionListener();
-    }
-
-    @Override
-    public ConnectionMetaData getMetaData() throws JMSException {
-        return getConnection().getMetaData();
-    }
-
-    @Override
-    public void setExceptionListener(ExceptionListener exceptionListener) throws JMSException {
-        connection.setParentExceptionListener(exceptionListener);
-    }
-
-    @Override
-    public void setClientID(String clientID) throws JMSException {
-        // ignore repeated calls to setClientID() with the same client id
-        // this could happen when a JMS component such as Spring that uses a
-        // PooledConnectionFactory shuts down and reinitializes.
-        if (this.getConnection().getClientID() == null || !this.getClientID().equals(clientID)) {
-            getConnection().setClientID(clientID);
-        }
     }
 
     @Override
@@ -165,8 +188,8 @@ public class JmsPoolConnection implements TopicConnection, QueueConnection, JmsP
         return getConnection().createConnectionConsumer(queue, selector, serverSessionPool, maxMessages);
     }
 
-    // Session factory methods
-    // -------------------------------------------------------------------------
+    //----- Session factory methods ------------------------------------------//
+
     @Override
     public QueueSession createQueueSession(boolean transacted, int ackMode) throws JMSException {
         return (QueueSession) createSession(transacted, ackMode);
@@ -191,7 +214,7 @@ public class JmsPoolConnection implements TopicConnection, QueueConnection, JmsP
     public Session createSession(boolean transacted, int ackMode) throws JMSException {
         JmsPoolSession result = (JmsPoolSession) connection.createSession(transacted, ackMode);
 
-        // Store the session so we can close the sessions that this PooledConnection
+        // Store the session so we can close the sessions that this Pooled JMS Connection
         // created in order to ensure that consumers etc are closed per the JMS contract.
         loanedSessions.add(result);
 
@@ -201,8 +224,7 @@ public class JmsPoolConnection implements TopicConnection, QueueConnection, JmsP
         return result;
     }
 
-    // Implementation methods
-    // -------------------------------------------------------------------------
+    //----- Pooled JMS Session specific methods ------------------------------//
 
     @Override
     public void onTemporaryQueueCreate(TemporaryQueue tempQueue) {

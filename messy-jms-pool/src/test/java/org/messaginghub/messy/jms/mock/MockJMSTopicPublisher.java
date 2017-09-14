@@ -26,7 +26,7 @@ import javax.jms.TopicPublisher;
  */
 public class MockJMSTopicPublisher extends MockJMSMessageProducer implements AutoCloseable, TopicPublisher {
 
-    public MockJMSTopicPublisher(MockJMSSession session, String producerId, MockJMSDestination destination) {
+    public MockJMSTopicPublisher(MockJMSSession session, String producerId, MockJMSDestination destination) throws JMSException {
         super(session, producerId, destination);
     }
 

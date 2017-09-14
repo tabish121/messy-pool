@@ -27,7 +27,7 @@ import javax.jms.QueueSender;
  */
 public class MockJMSQueueSender extends MockJMSMessageProducer implements QueueSender, AutoCloseable {
 
-    public MockJMSQueueSender(MockJMSSession session, String producerId, MockJMSDestination destination) {
+    public MockJMSQueueSender(MockJMSSession session, String producerId, MockJMSDestination destination) throws JMSException {
         super(session, producerId, destination);
     }
 
