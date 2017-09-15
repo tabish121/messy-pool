@@ -53,6 +53,7 @@
   <properties>
     <qpid-jms-version>0.24.0</qpid-jms-version>
     <activemq-version>5.15.0</activemq-version>
+    <artemis-version>2.3.0</artemis-version>
     <commons-pool2-version>2.4.2</commons-pool2-version>
     <slf4j-version>1.7.25</slf4j-version>
     <mockito-version>2.9.0</mockito-version>
@@ -202,6 +203,12 @@
         <scope>test</scope>
       </dependency>
 
+      <dependency>
+        <groupId>org.apache.activemq</groupId>
+        <artifactId>artemis-junit</artifactId>
+        <version>${artemis-version}</version>
+        <scope>test</scope>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
