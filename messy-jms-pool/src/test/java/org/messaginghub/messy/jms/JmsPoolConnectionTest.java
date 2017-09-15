@@ -16,20 +16,27 @@
  */
 package org.messaginghub.messy.jms;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import javax.jms.Connection;
+import javax.jms.ExceptionListener;
 import javax.jms.IllegalStateException;
 import javax.jms.JMSException;
 import javax.jms.Session;
 
 import org.junit.Test;
+import org.messaginghub.messy.jms.mock.MockJMSConnection;
 import org.messaginghub.messy.jms.mock.MockJMSConnectionFactory;
 import org.messaginghub.messy.jms.util.Wait;
 import org.slf4j.Logger;
@@ -43,8 +50,156 @@ public class JmsPoolConnectionTest extends JmsPoolTestSupport {
     private static final Logger LOG = LoggerFactory.getLogger(JmsPoolConnectionTest.class);
 
     @Test(timeout = 60000)
+    public void testExceptionListenerGetsNotified() throws Exception {
+        CountDownLatch signal = new CountDownLatch(1);
+        Connection connection = cf.createConnection();
+        connection.setExceptionListener(new ExceptionListener() {
+
+            @Override
+            public void onException(JMSException exception) {
+                LOG.info("ExceptionListener called with error: {}", exception.getMessage());
+                signal.countDown();
+            }
+        });
+
+        assertNotNull(connection.getExceptionListener());
+
+        MockJMSConnection mockJMSConnection = (MockJMSConnection) ((JmsPoolConnection) connection).getConnection();
+        mockJMSConnection.injectConnectionError(new JMSException("Some non-fatal error"));
+
+        assertTrue(signal.await(10, TimeUnit.SECONDS));
+    }
+
+    @Test(timeout = 60000)
+    public void testGetConnectionMetaData() throws Exception {
+        Connection connection = cf.createConnection();
+        assertNotNull(connection.getMetaData());
+    }
+
+    @Test(timeout = 60000)
+    public void testCreateSession() throws Exception {
+        Connection connection = cf.createConnection();
+
+        Session session1 = connection.createSession();
+        Session session2 = connection.createSession();
+
+        assertNotSame(session1, session2);
+        assertEquals(session1.getAcknowledgeMode(), Session.AUTO_ACKNOWLEDGE);
+        assertEquals(session2.getAcknowledgeMode(), Session.AUTO_ACKNOWLEDGE);
+
+        JmsPoolSession wrapperSession1 = (JmsPoolSession) session1;
+        JmsPoolSession wrapperSession2 = (JmsPoolSession) session2;
+
+        assertNotSame(wrapperSession1.getSession(), wrapperSession2.getSession());
+    }
+
+    @Test(timeout = 60000)
+    public void testCreateSessionAutoAcknowledge() throws Exception {
+        doTestCreateSessionWithGivenAckMode(Session.AUTO_ACKNOWLEDGE);
+    }
+
+    @Test(timeout = 60000)
+    public void testCreateSessionDupsOkAcknowledge() throws Exception {
+        doTestCreateSessionWithGivenAckMode(Session.DUPS_OK_ACKNOWLEDGE);
+    }
+
+    @Test(timeout = 60000)
+    public void testCreateSessionClientAcknowledge() throws Exception {
+        doTestCreateSessionWithGivenAckMode(Session.CLIENT_ACKNOWLEDGE);
+    }
+
+    @Test(timeout = 60000)
+    public void testCreateSessionSessionTransacted() throws Exception {
+        doTestCreateSessionWithGivenAckMode(Session.SESSION_TRANSACTED);
+    }
+
+    public void doTestCreateSessionWithGivenAckMode(int ackMode) throws Exception {
+        Connection connection = cf.createConnection();
+
+        Session session1 = connection.createSession(ackMode);
+        Session session2 = connection.createSession(ackMode);
+
+        assertNotSame(session1, session2);
+        assertEquals(session1.getAcknowledgeMode(), ackMode);
+        assertEquals(session2.getAcknowledgeMode(), ackMode);
+
+        JmsPoolSession wrapperSession1 = (JmsPoolSession) session1;
+        JmsPoolSession wrapperSession2 = (JmsPoolSession) session2;
+
+        assertNotSame(wrapperSession1.getSession(), wrapperSession2.getSession());
+    }
+
+    @Test(timeout = 60000)
+    public void testCreateSessionAutoAcknowledgeNoTX() throws Exception {
+        doTestCreateSessionWithGivenAckModeAndTXFlag(false, Session.AUTO_ACKNOWLEDGE);
+    }
+
+    @Test(timeout = 60000)
+    public void testCreateSessionAutoAcknowledgeTX() throws Exception {
+        doTestCreateSessionWithGivenAckModeAndTXFlag(true, Session.AUTO_ACKNOWLEDGE);
+    }
+
+    @Test(timeout = 60000)
+    public void testCreateSessionDupsOkAcknowledgeNoTX() throws Exception {
+        doTestCreateSessionWithGivenAckModeAndTXFlag(false, Session.DUPS_OK_ACKNOWLEDGE);
+    }
+
+    @Test(timeout = 60000)
+    public void testCreateSessionDupsOkAcknowledgeTX() throws Exception {
+        doTestCreateSessionWithGivenAckModeAndTXFlag(true, Session.DUPS_OK_ACKNOWLEDGE);
+    }
+
+    @Test(timeout = 60000)
+    public void testCreateSessionClientAcknowledgeNoTX() throws Exception {
+        doTestCreateSessionWithGivenAckModeAndTXFlag(false, Session.CLIENT_ACKNOWLEDGE);
+    }
+
+    @Test(timeout = 60000)
+    public void testCreateSessionClientAcknowledgeTX() throws Exception {
+        doTestCreateSessionWithGivenAckModeAndTXFlag(true, Session.CLIENT_ACKNOWLEDGE);
+    }
+
+    @Test(timeout = 60000)
+    public void testCreateSessionSessionTransactedNoTX() throws Exception {
+        doTestCreateSessionWithGivenAckModeAndTXFlag(false, Session.SESSION_TRANSACTED);
+    }
+
+    @Test(timeout = 60000)
+    public void testCreateSessionSessionTransactedTX() throws Exception {
+        doTestCreateSessionWithGivenAckModeAndTXFlag(true, Session.SESSION_TRANSACTED);
+    }
+
+    public void doTestCreateSessionWithGivenAckModeAndTXFlag(boolean transacted, int ackMode) throws Exception {
+        Connection connection = cf.createConnection();
+
+        if (!transacted && ackMode == Session.SESSION_TRANSACTED) {
+            try {
+                connection.createSession(transacted, ackMode);
+                fail("Should not allow non-transacted session with SESSION_TRANSACTED");
+            } catch (JMSException jmsex) {}
+        } else {
+            Session session1 = connection.createSession(transacted, ackMode);
+            Session session2 = connection.createSession(transacted, ackMode);
+
+            assertNotSame(session1, session2);
+
+            if (transacted) {
+                assertEquals(session1.getAcknowledgeMode(), Session.SESSION_TRANSACTED);
+                assertEquals(session2.getAcknowledgeMode(), Session.SESSION_TRANSACTED);
+            } else {
+                assertEquals(session1.getAcknowledgeMode(), ackMode);
+                assertEquals(session2.getAcknowledgeMode(), ackMode);
+            }
+
+            JmsPoolSession wrapperSession1 = (JmsPoolSession) session1;
+            JmsPoolSession wrapperSession2 = (JmsPoolSession) session2;
+
+            assertNotSame(wrapperSession1.getSession(), wrapperSession2.getSession());
+        }
+    }
+
+    @Test(timeout = 60000)
     public void testSetClientIDTwiceWithSameID() throws Exception {
-        LOG.debug("running testRepeatedSetClientIDCalls()");
         Connection connection = cf.createConnection();
 
         // test: call setClientID("newID") twice
@@ -67,8 +222,6 @@ public class JmsPoolConnectionTest extends JmsPoolTestSupport {
 
     @Test(timeout = 60000)
     public void testSetClientIDTwiceWithDifferentID() throws Exception {
-        LOG.debug("running testRepeatedSetClientIDCalls()");
-
         Connection connection = cf.createConnection();
 
         // test: call setClientID() twice with different IDs
@@ -89,8 +242,6 @@ public class JmsPoolConnectionTest extends JmsPoolTestSupport {
 
     @Test(timeout = 60000)
     public void testSetClientIDAfterConnectionStart() throws Exception {
-        LOG.debug("running testRepeatedSetClientIDCalls()");
-
         Connection connection = cf.createConnection();
 
         // test: try to call setClientID() after start()
