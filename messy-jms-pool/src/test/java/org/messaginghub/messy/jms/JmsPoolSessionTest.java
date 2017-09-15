@@ -17,27 +17,69 @@
 package org.messaginghub.messy.jms;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import javax.jms.IllegalStateException;
+import javax.jms.Queue;
 import javax.jms.Session;
+import javax.jms.TemporaryQueue;
+import javax.jms.TemporaryTopic;
+import javax.jms.Topic;
 
-import org.junit.Before;
 import org.junit.Test;
-import org.messaginghub.messy.jms.mock.MockJMSConnectionFactory;
+import org.messaginghub.messy.jms.mock.MockJMSQueue;
+import org.messaginghub.messy.jms.mock.MockJMSTemporaryQueue;
+import org.messaginghub.messy.jms.mock.MockJMSTemporaryTopic;
+import org.messaginghub.messy.jms.mock.MockJMSTopic;
 
 public class JmsPoolSessionTest extends JmsPoolTestSupport {
 
-    private JmsPoolConnectionFactory cf;
+    @Test(timeout = 60000)
+    public void testCreateQueue() throws Exception {
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createConnection();
+        Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+        Queue queue = session.createQueue(getTestName());
+        assertNotNull(queue);
+        assertEquals(getTestName(), queue.getQueueName());
+        assertTrue(queue instanceof MockJMSQueue);
+    }
 
-    @Override
-	@Before
-    public void setUp() throws Exception {
-        factory = new MockJMSConnectionFactory();
-        cf = new JmsPoolConnectionFactory();
-        cf.setConnectionFactory(factory);
-        cf.setMaxConnections(1);
-        cf.setBlockIfSessionPoolIsFull(false);
+    @Test(timeout = 60000)
+    public void testCreateTopic() throws Exception {
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createConnection();
+        Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+        Topic topic = session.createTopic(getTestName());
+        assertNotNull(topic);
+        assertEquals(getTestName(), topic.getTopicName());
+        assertTrue(topic instanceof MockJMSTopic);
+    }
+
+    @Test(timeout = 60000)
+    public void testCreateTemporaryQueue() throws Exception {
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createConnection();
+        Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+        TemporaryQueue queue = session.createTemporaryQueue();
+        assertNotNull(queue);
+        assertTrue(queue instanceof MockJMSTemporaryQueue);
+    }
+
+    @Test(timeout = 60000)
+    public void testCreateTemporaryTopic() throws Exception {
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createConnection();
+        Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+        TemporaryTopic topic = session.createTemporaryTopic();
+        assertNotNull(topic);
+        assertTrue(topic instanceof MockJMSTemporaryTopic);
+    }
+
+    @Test(timeout = 60000)
+    public void testGetXAResourceOnNonXAPooledSession() throws Exception {
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createConnection();
+        JmsPoolSession session = (JmsPoolSession) connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+        assertNull(session.getXAResource());
     }
 
     @Test(timeout = 60000)
@@ -62,6 +104,7 @@ public class JmsPoolSessionTest extends JmsPoolTestSupport {
     @Test(timeout = 60000)
     public void testPooledSessionStatsOneSessionWithSessionLimit() throws Exception {
         cf.setMaximumActiveSessionPerConnection(1);
+        cf.setBlockIfSessionPoolIsFull(false);
 
         JmsPoolConnection connection = (JmsPoolConnection) cf.createConnection();
 
