@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
+import javax.jms.IllegalStateException;
 import javax.jms.JMSContext;
 import javax.jms.JMSException;
 import javax.jms.JMSRuntimeException;
@@ -281,7 +282,8 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
                     connectionsPool.close();
                     connectionsPool = null;
                 }
-            } catch (Exception e) {
+            } catch (Exception ignored) {
+                LOG.trace("Caught exception on close of connectionPool: ", ignored);
             }
         }
     }
@@ -628,6 +630,10 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
         if (stopped.get()) {
             LOG.debug("JmsPoolConnectionFactory is stopped, skip create new connection.");
             return null;
+        }
+
+        if (connectionFactory == null) {
+            throw new IllegalStateException("No ConnectionFactory instance has been configured");
         }
 
         PooledConnection connection = null;

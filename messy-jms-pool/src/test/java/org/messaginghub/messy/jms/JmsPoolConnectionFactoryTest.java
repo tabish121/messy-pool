@@ -17,10 +17,12 @@
 package org.messaginghub.messy.jms;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,8 +33,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import javax.jms.Connection;
+import javax.jms.IllegalStateException;
 import javax.jms.JMSException;
+import javax.jms.QueueConnection;
 import javax.jms.QueueConnectionFactory;
+import javax.jms.TopicConnection;
 import javax.jms.TopicConnectionFactory;
 
 import org.apache.log4j.Logger;
@@ -54,6 +59,98 @@ public class JmsPoolConnectionFactoryTest extends JmsPoolTestSupport {
         assertTrue(cf instanceof QueueConnectionFactory);
         assertTrue(cf instanceof TopicConnectionFactory);
         cf.stop();
+    }
+
+    @Test(timeout = 60000)
+    public void testGetConnectionFactory() throws  Exception {
+        cf = new JmsPoolConnectionFactory();
+        assertNull("Should not have any factory set yet", cf.getConnectionFactory());
+        cf.setConnectionFactory(factory);
+        assertNotNull("Should have a factory set yet", cf.getConnectionFactory());
+        assertSame(factory, cf.getConnectionFactory());
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testFactoryRejectsNonConnectionFactorySet() throws  Exception {
+        cf.setConnectionFactory("");
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void testCreateConnectionWithNoFactorySet() throws  Exception {
+        cf = new JmsPoolConnectionFactory();
+        cf.createConnection();
+    }
+
+    @Test(timeout = 60000)
+    public void testCreateConnection() throws Exception {
+        Connection connection = cf.createConnection();
+
+        assertNotNull(connection);
+        assertEquals(1, cf.getNumConnections());
+
+        connection.close();
+
+        assertEquals(1, cf.getNumConnections());
+    }
+
+    @Test(timeout = 60000)
+    public void testCreateConnectionWithCredentials() throws Exception {
+        Connection connection = cf.createConnection("user", "pass");
+
+        assertNotNull(connection);
+        assertEquals(1, cf.getNumConnections());
+
+        connection.close();
+
+        assertEquals(1, cf.getNumConnections());
+    }
+
+    @Test(timeout = 60000)
+    public void testQueueCreateConnection() throws Exception {
+        QueueConnection connection = cf.createQueueConnection();
+
+        assertNotNull(connection);
+        assertEquals(1, cf.getNumConnections());
+
+        connection.close();
+
+        assertEquals(1, cf.getNumConnections());
+    }
+
+    @Test(timeout = 60000)
+    public void testQueueCreateConnectionWithCredentials() throws Exception {
+        QueueConnection connection = cf.createQueueConnection("user", "pass");
+
+        assertNotNull(connection);
+        assertEquals(1, cf.getNumConnections());
+
+        connection.close();
+
+        assertEquals(1, cf.getNumConnections());
+    }
+
+    @Test(timeout = 60000)
+    public void testTopicCreateConnection() throws Exception {
+        TopicConnection connection = cf.createTopicConnection();
+
+        assertNotNull(connection);
+        assertEquals(1, cf.getNumConnections());
+
+        connection.close();
+
+        assertEquals(1, cf.getNumConnections());
+    }
+
+    @Test(timeout = 60000)
+    public void testTopicCreateConnectionWithCredentials() throws Exception {
+        TopicConnection connection = cf.createTopicConnection("user", "pass");
+
+        assertNotNull(connection);
+        assertEquals(1, cf.getNumConnections());
+
+        connection.close();
+
+        assertEquals(1, cf.getNumConnections());
     }
 
     @Test(timeout = 60000)
@@ -89,6 +186,34 @@ public class JmsPoolConnectionFactoryTest extends JmsPoolTestSupport {
     }
 
     @Test(timeout = 60000)
+    public void testClearDoesNotFailOnStoppedConnectionFactory() throws Exception {
+        MockJMSConnectionFactory mock = new MockJMSConnectionFactory();
+        cf = new JmsPoolConnectionFactory();
+        cf.setConnectionFactory(mock);
+        cf.setMaxConnections(3);
+
+        JmsPoolConnection conn1 = (JmsPoolConnection) cf.createConnection();
+        JmsPoolConnection conn2 = (JmsPoolConnection) cf.createConnection();
+        JmsPoolConnection conn3 = (JmsPoolConnection) cf.createConnection();
+
+        assertNotSame(conn1.getConnection(), conn2.getConnection());
+        assertNotSame(conn1.getConnection(), conn3.getConnection());
+        assertNotSame(conn2.getConnection(), conn3.getConnection());
+
+        assertEquals(3, cf.getNumConnections());
+
+        cf.stop();
+
+        assertEquals(0, cf.getNumConnections());
+
+        try {
+            cf.clear();
+        } catch (Throwable error) {
+            fail("Should not throw on clear of stopped factory.");
+        }
+    }
+
+    @Test(timeout = 60000)
     public void testMaxConnectionsAreCreated() throws Exception {
         MockJMSConnectionFactory mock = new MockJMSConnectionFactory();
         cf = new JmsPoolConnectionFactory();
@@ -104,6 +229,29 @@ public class JmsPoolConnectionFactoryTest extends JmsPoolTestSupport {
         assertNotSame(conn2.getConnection(), conn3.getConnection());
 
         assertEquals(3, cf.getNumConnections());
+
+        cf.stop();
+    }
+
+    @Test(timeout = 60000)
+    public void testCannotCreateConnectionOnStoppedFactory() throws Exception {
+        MockJMSConnectionFactory mock = new MockJMSConnectionFactory();
+        cf = new JmsPoolConnectionFactory();
+        cf.setConnectionFactory(mock);
+        cf.setMaxConnections(100);
+        cf.stop();
+
+        assertEquals(0, cf.getNumConnections());
+
+        assertNull(cf.createConnection());
+
+        assertEquals(0, cf.getNumConnections());
+
+        cf.start();
+
+        assertNotNull(cf.createConnection());
+
+        assertEquals(1, cf.getNumConnections());
 
         cf.stop();
     }
