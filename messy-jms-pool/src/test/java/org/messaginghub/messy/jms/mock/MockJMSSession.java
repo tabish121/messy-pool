@@ -23,9 +23,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 import javax.jms.BytesMessage;
+import javax.jms.CompletionListener;
 import javax.jms.Destination;
 import javax.jms.IllegalStateException;
 import javax.jms.InvalidDestinationException;
+import javax.jms.JMSContext;
 import javax.jms.JMSException;
 import javax.jms.JMSRuntimeException;
 import javax.jms.MapMessage;
@@ -368,6 +370,28 @@ public class MockJMSSession implements Session, QueueSession, TopicSession, Auto
     @Override
     public void run() {
         throw new JMSRuntimeException("Not Supported");
+    }
+
+    //----- Session access points for producer and consumer ------------------//
+
+    void send(MockJMSMessageProducer producer, Destination destination, Message message, int deliveryMode, int priority, long timeToLive, boolean disableMessageId, boolean disableTimestamp, long deliveryDelay, CompletionListener completionListener) throws JMSException {
+        // TODO Auto-generated method stub
+    }
+
+    public void acknowledge() throws JMSException {
+        // TODO Auto-generated method stub
+    }
+
+    static void validateSessionMode(int mode) {
+        switch (mode) {
+            case JMSContext.AUTO_ACKNOWLEDGE:
+            case JMSContext.CLIENT_ACKNOWLEDGE:
+            case JMSContext.DUPS_OK_ACKNOWLEDGE:
+            case JMSContext.SESSION_TRANSACTED:
+                return;
+            default:
+                throw new JMSRuntimeException("Invalid Session Mode: " + mode);
+        }
     }
 
     //----- Internal Utility Methods -----------------------------------------//

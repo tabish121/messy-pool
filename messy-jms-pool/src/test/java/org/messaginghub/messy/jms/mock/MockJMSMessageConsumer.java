@@ -105,6 +105,13 @@ public class MockJMSMessageConsumer implements MessageConsumer, AutoCloseable {
         return null;
     }
 
+    public <T> T receiveBody(Class<T> desired, long timeout) throws JMSException {
+        checkClosed();
+        //checkMessageListener();
+        // TODO Auto-generated method stub
+        return null;
+    }
+
     //----- Internal Support Methods -----------------------------------------//
 
     protected void checkClosed() throws IllegalStateException {
