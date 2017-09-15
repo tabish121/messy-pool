@@ -57,6 +57,7 @@ import org.junit.Test;
 
 public class XAConnectionPoolTest extends ActiveMQJmsPoolTestSupport {
 
+    @SuppressWarnings("resource")
     @Test(timeout = 60000)
     public void testAfterCompletionCanClose() throws Exception {
         final Vector<Synchronization> syncs = new Vector<Synchronization>();
