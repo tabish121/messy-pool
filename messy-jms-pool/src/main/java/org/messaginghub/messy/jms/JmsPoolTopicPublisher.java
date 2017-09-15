@@ -27,7 +27,7 @@ import org.messaginghub.messy.jms.pool.PooledConnection;
 /**
  * A {@link TopicPublisher} instance that is created and managed by a PooledConnection.
  */
-public class JmsPoolTopicPublisher extends JmsPoolMessageProducer implements TopicPublisher {
+public class JmsPoolTopicPublisher extends JmsPoolMessageProducer implements TopicPublisher, AutoCloseable {
 
     public JmsPoolTopicPublisher(PooledConnection connection, TopicPublisher messageProducer, Destination destination) throws JMSException {
         super(connection, messageProducer, destination);

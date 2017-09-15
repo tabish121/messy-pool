@@ -50,7 +50,7 @@ import org.slf4j.LoggerFactory;
  * <b>NOTE</b> this implementation is only intended for use when sending
  * messages. It does not deal with pooling of consumers.
  */
-public class JmsPoolConnection implements TopicConnection, QueueConnection, JmsPoolSessionEventListener {
+public class JmsPoolConnection implements TopicConnection, QueueConnection, JmsPoolSessionEventListener, AutoCloseable {
 
     private static final Logger LOG = LoggerFactory.getLogger(JmsPoolConnection.class);
 

@@ -24,7 +24,7 @@ import javax.jms.MessageListener;
 /**
  * A {@link MessageConsumer} which was created by {@link JmsPoolSession}.
  */
-public class JmsPoolMessageConsumer implements MessageConsumer {
+public class JmsPoolMessageConsumer implements MessageConsumer, AutoCloseable {
 
     private final JmsPoolSession session;
     private final MessageConsumer delegate;

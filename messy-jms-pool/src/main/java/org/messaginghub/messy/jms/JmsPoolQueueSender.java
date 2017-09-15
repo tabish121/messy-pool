@@ -27,7 +27,7 @@ import org.messaginghub.messy.jms.pool.PooledConnection;
 /**
  * {@link QueueSender} instance that is created and managed by the PooledConnection.
  */
-public class JmsPoolQueueSender extends JmsPoolMessageProducer implements QueueSender {
+public class JmsPoolQueueSender extends JmsPoolMessageProducer implements QueueSender, AutoCloseable {
 
     public JmsPoolQueueSender(PooledConnection connection, QueueSender messageProducer, Destination destination) throws JMSException {
         super(connection, messageProducer, destination);

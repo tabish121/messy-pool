@@ -23,7 +23,7 @@ import javax.jms.TopicSubscriber;
 /**
  * A {@link TopicSubscriber} which was created by {@link JmsPoolSession}.
  */
-public class JmsPoolTopicSubscriber extends JmsPoolMessageConsumer implements TopicSubscriber {
+public class JmsPoolTopicSubscriber extends JmsPoolMessageConsumer implements TopicSubscriber, AutoCloseable {
 
     /**
      * Wraps the TopicSubscriber.

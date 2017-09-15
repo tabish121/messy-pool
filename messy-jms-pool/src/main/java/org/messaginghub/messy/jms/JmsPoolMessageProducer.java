@@ -30,7 +30,7 @@ import org.messaginghub.messy.jms.pool.PooledConnection;
 /**
  * A pooled {@link MessageProducer}
  */
-public class JmsPoolMessageProducer implements MessageProducer {
+public class JmsPoolMessageProducer implements MessageProducer, AutoCloseable {
 
     private final PooledConnection connection;
     private final MessageProducer messageProducer;

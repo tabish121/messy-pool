@@ -23,7 +23,7 @@ import javax.jms.QueueReceiver;
 /**
  * A {@link QueueReceiver} which was created by {@link JmsPoolSession}.
  */
-public class JmsPoolQueueReceiver extends JmsPoolMessageConsumer implements QueueReceiver {
+public class JmsPoolQueueReceiver extends JmsPoolMessageConsumer implements QueueReceiver, AutoCloseable {
 
     /**
      * Wraps the QueueReceiver.

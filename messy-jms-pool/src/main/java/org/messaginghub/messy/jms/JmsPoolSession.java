@@ -53,7 +53,7 @@ import org.messaginghub.messy.jms.pool.PooledSessionKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class JmsPoolSession implements Session, TopicSession, QueueSession, XASession {
+public class JmsPoolSession implements Session, TopicSession, QueueSession, XASession, AutoCloseable {
     private static final transient Logger LOG = LoggerFactory.getLogger(JmsPoolSession.class);
 
     private final PooledSessionKey key;

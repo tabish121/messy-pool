@@ -25,7 +25,7 @@ import javax.jms.QueueBrowser;
 /**
  * A {@link QueueBrowser} which was created by {@link JmsPoolSession}.
  */
-public class JmsPoolQueueBrowser implements QueueBrowser {
+public class JmsPoolQueueBrowser implements QueueBrowser, AutoCloseable {
 
     private final JmsPoolSession session;
     private final QueueBrowser delegate;
