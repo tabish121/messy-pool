@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
 public class ArtemisJmsPoolTestSupport {
 
     @Rule public TestName name = new TestName();
-    @Rule public EmbeddedJMSResource server = new EmbeddedJMSResource(true);
+    @Rule public EmbeddedJMSResource server = new EmbeddedJMSResource(false);
 
     protected static final Logger LOG = LoggerFactory.getLogger(ArtemisJmsPoolTestSupport.class);
 
@@ -39,7 +39,7 @@ public class ArtemisJmsPoolTestSupport {
     public void setUp() throws Exception {
         LOG.info("========== started test: " + getTestName() + " ==========");
 
-        artemisJmsConnectionFactory = new ActiveMQConnectionFactory();
+        artemisJmsConnectionFactory = new ActiveMQConnectionFactory(server.getVmURL());
 
         cf = new JmsPoolConnectionFactory();
         cf.setConnectionFactory(artemisJmsConnectionFactory);
