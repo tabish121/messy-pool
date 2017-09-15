@@ -502,7 +502,7 @@ public class JmsPoolSession implements Session, TopicSession, QueueSession, XASe
 
     @Override
     public String toString() {
-        return "PooledSession { " + safeGetSessionHolder() + " }";
+        return getClass().getSimpleName() + " { " + safeGetSessionHolder() + " }";
     }
 
     /**

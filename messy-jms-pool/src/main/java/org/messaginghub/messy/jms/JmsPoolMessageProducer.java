@@ -248,10 +248,14 @@ public class JmsPoolMessageProducer implements MessageProducer, AutoCloseable {
         return getClass().getSimpleName() + " { " + messageProducer + " }";
     }
 
+    public MessageProducer getMessageProducer() throws JMSException {
+        checkClosed();
+        return messageProducer;
+    }
+
     //----- Internal Implementation ------------------------------------------//
 
-    protected MessageProducer getMessageProducer() throws JMSException {
-        checkClosed();
+    protected MessageProducer getDelegate() {
         return messageProducer;
     }
 

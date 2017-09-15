@@ -58,7 +58,12 @@ public class JmsPoolTopicPublisher extends JmsPoolMessageProducer implements Top
         getTopicPublisher().publish(topic, message, i, i1, l);
     }
 
-    protected TopicPublisher getTopicPublisher() throws JMSException {
+    @Override
+    public String toString() {
+        return getClass().getSimpleName() + " { " + getDelegate() + " }";
+    }
+
+    public TopicPublisher getTopicPublisher() throws JMSException {
         return (TopicPublisher) getMessageProducer();
     }
 }

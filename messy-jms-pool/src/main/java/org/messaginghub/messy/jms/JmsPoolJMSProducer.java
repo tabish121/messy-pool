@@ -81,6 +81,11 @@ public class JmsPoolJMSProducer implements JMSProducer {
         this.producer = producer;
     }
 
+    @Override
+    public String toString() {
+        return getClass().getSimpleName() + " { " + producer + " }";
+    }
+
     //----- Send Methods -----------------------------------------------------//
 
     @Override

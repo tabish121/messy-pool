@@ -16,6 +16,9 @@
  */
 package org.messaginghub.messy.jms;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import javax.jms.IllegalStateException;
 import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.MessageConsumer;
@@ -27,62 +30,80 @@ import javax.jms.MessageListener;
 public class JmsPoolMessageConsumer implements MessageConsumer, AutoCloseable {
 
     private final JmsPoolSession session;
-    private final MessageConsumer delegate;
+    private final MessageConsumer messageConsumer;
+    private final AtomicBoolean closed = new AtomicBoolean();
 
     /**
      * Wraps the message consumer.
      *
-     * @param session  the pooled session
-     * @param delegate the created consumer to wrap
+     * @param session
+     * 		the pooled session
+     * @param messageConsumer
+     * 		the created consumer to wrap
      */
-    JmsPoolMessageConsumer(JmsPoolSession session, MessageConsumer delegate) {
+    JmsPoolMessageConsumer(JmsPoolSession session, MessageConsumer messageConsumer) {
         this.session = session;
-        this.delegate = delegate;
+        this.messageConsumer = messageConsumer;
     }
 
     @Override
     public void close() throws JMSException {
         // ensure session removes consumer from it's list of managed resources.
-        session.onConsumerClose(delegate);
-        delegate.close();
+        if (closed.compareAndSet(false, true)) {
+            session.onConsumerClose(messageConsumer);
+            messageConsumer.close();
+        }
     }
 
     @Override
     public MessageListener getMessageListener() throws JMSException {
-        return delegate.getMessageListener();
+        return messageConsumer.getMessageListener();
     }
 
     @Override
     public String getMessageSelector() throws JMSException {
-        return delegate.getMessageSelector();
+        return messageConsumer.getMessageSelector();
     }
 
     @Override
     public Message receive() throws JMSException {
-        return delegate.receive();
+        return messageConsumer.receive();
     }
 
     @Override
     public Message receive(long timeout) throws JMSException {
-        return delegate.receive(timeout);
+        return messageConsumer.receive(timeout);
     }
 
     @Override
     public Message receiveNoWait() throws JMSException {
-        return delegate.receiveNoWait();
+        return messageConsumer.receiveNoWait();
     }
 
     @Override
     public void setMessageListener(MessageListener listener) throws JMSException {
-        delegate.setMessageListener(listener);
+        messageConsumer.setMessageListener(listener);
     }
 
     @Override
     public String toString() {
-        return "PooledMessageConsumer { " + delegate + " }";
+        return getClass().getSimpleName() + " { " + messageConsumer + " }";
+    }
+
+    public MessageConsumer getMessageConsumer() throws JMSException {
+        checkClosed();
+        return messageConsumer;
+    }
+
+    //----- Internal support methods -----------------------------------------//
+
+    protected void checkClosed() throws JMSException {
+        if (closed.get()) {
+            throw new IllegalStateException("The MessageConsumer is closed");
+        }
     }
 
     protected MessageConsumer getDelegate() {
-        return delegate;
+        return messageConsumer;
     }
 }

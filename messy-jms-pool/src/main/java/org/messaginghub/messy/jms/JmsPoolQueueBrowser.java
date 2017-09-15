@@ -67,7 +67,7 @@ public class JmsPoolQueueBrowser implements QueueBrowser, AutoCloseable {
 
     @Override
     public String toString() {
-        return "PooledQueueBrowser { " + delegate + " }";
+        return getClass().getSimpleName() + " { " + delegate + " }";
     }
 
     protected QueueBrowser getDelegate() {

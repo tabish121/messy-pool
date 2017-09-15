@@ -116,4 +116,9 @@ public class JmsPoolJMSConsumer implements JMSConsumer, AutoCloseable {
     public <T> T receiveBodyNoWait(Class<T> desired) {
         throw new JMSRuntimeException("Pooled JMSConsumer does not support receiveBody");
     }
+
+    @Override
+    public String toString() {
+        return getClass().getSimpleName() + " { " + consumer + " }";
+    }
 }

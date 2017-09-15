@@ -239,7 +239,7 @@ public class JmsPoolConnection implements TopicConnection, QueueConnection, JmsP
 
     @Override
     public String toString() {
-        return "PooledConnection { " + connection + " }";
+        return getClass().getSimpleName() + " { " + connection + " }";
     }
 
     /**

@@ -472,6 +472,11 @@ public class JmsPoolJMSContext implements JMSContext, AutoCloseable {
         return sessionMode == JMSContext.SESSION_TRANSACTED;
     }
 
+    @Override
+    public String toString() {
+        return getClass().getSimpleName() + " { " + connection + " }";
+    }
+
     //----- Internal implementation methods ----------------------------------//
 
     private JmsPoolSession getSession() {

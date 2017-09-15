@@ -39,16 +39,15 @@ public class JmsPoolQueueReceiver extends JmsPoolMessageConsumer implements Queu
 
     @Override
     public Queue getQueue() throws JMSException {
-        return getDelegate().getQueue();
+        return getQueueReceiver().getQueue();
     }
 
     @Override
     public String toString() {
-        return "PooledQueueReceiver { " + getDelegate() + " }";
+        return getClass().getSimpleName() + " { " + getDelegate() + " }";
     }
 
-    @Override
-    protected QueueReceiver getDelegate() {
+    public QueueReceiver getQueueReceiver() {
         return (QueueReceiver) super.getDelegate();
     }
 }

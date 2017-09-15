@@ -39,21 +39,20 @@ public class JmsPoolTopicSubscriber extends JmsPoolMessageConsumer implements To
 
     @Override
     public Topic getTopic() throws JMSException {
-        return getDelegate().getTopic();
+        return getTopicSubscriber().getTopic();
     }
 
     @Override
     public boolean getNoLocal() throws JMSException {
-        return getDelegate().getNoLocal();
+        return getTopicSubscriber().getNoLocal();
     }
 
     @Override
     public String toString() {
-        return "PooledTopicSubscriber { " + getDelegate() + " }";
+        return getClass().getSimpleName() + " { " + getDelegate() + " }";
     }
 
-    @Override
-    protected TopicSubscriber getDelegate() {
-        return (TopicSubscriber) super.getDelegate();
+    public TopicSubscriber getTopicSubscriber() throws JMSException {
+        return (TopicSubscriber) super.getMessageConsumer();
     }
 }
