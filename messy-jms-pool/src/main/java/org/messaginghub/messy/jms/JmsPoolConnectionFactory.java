@@ -88,6 +88,7 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
     private boolean createConnectionOnStartup = true;
     private boolean useAnonymousProducers = true;
     private boolean reconnectOnException = true;
+    private boolean useProviderJMSContext = false;
 
     // Temporary value used to always fetch the result of makeObject.
     private final AtomicReference<PooledConnection> mostRecentlyCreated = new AtomicReference<PooledConnection>(null);
@@ -255,7 +256,15 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
             throw new JMSRuntimeException("Configured ConnectionFactory is not JMS 2+ capable");
         }
 
-        return createProviderContext(username, password, sessionMode);
+        if (isUseProviderJMSContext()) {
+            return createProviderContext(username, password, sessionMode);
+        } else {
+            try {
+                return new JmsPoolJMSContext(createJmsPoolConnection(username, password), sessionMode);
+            } catch (JMSException e) {
+                throw JMSExceptionSupport.createRuntimeException(e);
+            }
+        }
     }
 
     //----- Setup and Close --------------------------------------------------//
@@ -537,6 +546,28 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
      */
     public void setReconnectOnException(boolean reconnectOnException) {
         this.reconnectOnException = reconnectOnException;
+    }
+
+    /**
+     * @return the true if the pool is using the provider's JMSContext instead of a pooled version.
+     */
+    public boolean isUseProviderJMSContext() {
+        return useProviderJMSContext;
+    }
+
+    /**
+     * Controls the behavior of the {@link JmsPoolConnectionFactory#createContext} methods.
+     * <p>
+     * By default this value is set to false and the JMS Pool will use an pooled version of
+     * a JMSContext to wrap Connections from the pool.  These pooled JMSContext's have certain
+     * limitations which may not be desirable in some cases.  To use the JMSContext implementation
+     * from the underlying JMS provider this option can be set to true.
+     *
+     * @param useProviderJMSContext
+     * 		Boolean value indicating whether the pool should include JMSContext in the pooling.
+     */
+    public void setUseProviderJMSContext(boolean useProviderJMSContext) {
+        this.useProviderJMSContext = useProviderJMSContext;
     }
 
     //----- Internal implementation ------------------------------------------//
