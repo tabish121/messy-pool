@@ -288,6 +288,10 @@ public class MockJMSContext implements JMSContext, AutoCloseable {
 
     @Override
     public JMSProducer createProducer() {
+        if (connectionRefCount.get() == 0) {
+            throw new IllegalStateRuntimeException("The Connection is closed");
+        }
+
         try {
             if (sharedProducer == null) {
                 synchronized (this) {

@@ -20,6 +20,7 @@ import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicLong;
 
 import javax.jms.BytesMessage;
+import javax.jms.Connection;
 import javax.jms.ConnectionMetaData;
 import javax.jms.Destination;
 import javax.jms.ExceptionListener;
@@ -116,7 +117,7 @@ public class JmsPoolJMSContext implements JMSContext, AutoCloseable {
     @Override
     public void acknowledge() {
         if (getSessionMode() == Session.CLIENT_ACKNOWLEDGE) {
-            throw new JMSRuntimeException("Pooled JMS Context does not support CLIENT_ACKNOWLEDGE Sessions");
+            throw new JMSRuntimeException("Pooled JMS Context does not support acknowledge() client must acknowledge messages");
         }
     }
 
@@ -287,6 +288,10 @@ public class JmsPoolJMSContext implements JMSContext, AutoCloseable {
 
     @Override
     public JMSProducer createProducer() {
+        if (connectionRefCount.get() == 0) {
+            throw new IllegalStateRuntimeException("The Connection is closed");
+        }
+
         try {
             if (sharedProducer == null) {
                 synchronized (this) {
@@ -477,6 +482,14 @@ public class JmsPoolJMSContext implements JMSContext, AutoCloseable {
         return getClass().getSimpleName() + " { " + connection + " }";
     }
 
+    public Connection getConnection() {
+        try {
+            return connection.getConnection();
+        } catch (JMSException jmsex) {
+            throw JMSExceptionSupport.createRuntimeException(jmsex);
+        }
+    }
+
     //----- Internal implementation methods ----------------------------------//
 
     private JmsPoolSession getSession() {
@@ -513,9 +526,10 @@ public class JmsPoolJMSContext implements JMSContext, AutoCloseable {
 
     private void validateSessionMode(int mode) {
         switch (mode) {
-            case JMSContext.AUTO_ACKNOWLEDGE:
-            case JMSContext.DUPS_OK_ACKNOWLEDGE:
             case JMSContext.SESSION_TRANSACTED:
+            case JMSContext.AUTO_ACKNOWLEDGE:
+            case JMSContext.CLIENT_ACKNOWLEDGE:
+            case JMSContext.DUPS_OK_ACKNOWLEDGE:
                 return;
             default:
                 throw new JMSRuntimeException("Invalid Session Mode: " + mode);

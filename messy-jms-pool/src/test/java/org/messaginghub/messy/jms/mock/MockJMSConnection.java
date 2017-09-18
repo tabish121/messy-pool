@@ -100,12 +100,16 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
     public void start() throws JMSException {
         checkClosedOrFailed();
         ensureConnected();
+
+        started.set(true);
     }
 
     @Override
     public void stop() throws JMSException {
         checkClosedOrFailed();
         ensureConnected();
+
+        started.set(false);
     }
 
     @Override
@@ -278,6 +282,11 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
     public UUID getConnectionId() throws JMSException {
         checkClosedOrFailed();
         return connectionId;
+    }
+
+    public boolean isStarted() throws JMSException {
+        checkClosedOrFailed();
+        return started.get();
     }
 
     public MockJMSUser getUser() throws JMSException {

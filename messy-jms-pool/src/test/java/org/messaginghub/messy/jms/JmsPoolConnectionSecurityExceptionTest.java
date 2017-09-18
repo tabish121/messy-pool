@@ -21,7 +21,9 @@ import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.fail;
 
 import javax.jms.Connection;
+import javax.jms.JMSContext;
 import javax.jms.JMSException;
+import javax.jms.JMSRuntimeException;
 import javax.jms.JMSSecurityException;
 import javax.jms.MessageProducer;
 import javax.jms.Queue;
@@ -70,11 +72,32 @@ public class JmsPoolConnectionSecurityExceptionTest extends JmsPoolTestSupport {
     }
 
     @Test
+    public void testContextCreateAuthentication() throws JMSException {
+        try {
+            cf.createContext("admin", "admin");
+        } catch (JMSRuntimeException jmsse) {
+            fail("Should not be able to create connection using bad credentials");
+        }
+
+        assertEquals(1, cf.getNumConnections());
+    }
+
+    @Test
     public void testConectionCreateAuthenticationError() throws JMSException {
         try {
             cf.createConnection("guest", "guest");
             fail("Should not be able to create connection using bad credentials");
         } catch (JMSSecurityException jmsse) {}
+
+        assertEquals(0, cf.getNumConnections());
+    }
+
+    @Test
+    public void testContextCreateAuthenticationError() throws JMSException {
+        try {
+            cf.createContext("guest", "guest");
+            fail("Should not be able to create connection using bad credentials");
+        } catch (JMSRuntimeException jmsse) {}
 
         assertEquals(0, cf.getNumConnections());
     }
@@ -92,6 +115,25 @@ public class JmsPoolConnectionSecurityExceptionTest extends JmsPoolTestSupport {
             Connection connection = cf.createConnection("admin", "admin");
             connection.close();
         } catch (JMSSecurityException jmsse) {
+            fail("Should be able to create connection using bad credentials");
+        }
+
+        assertEquals(1, cf.getNumConnections());
+    }
+
+    @Test
+    public void testContextCreateWorksAfterAuthenticationError() throws JMSException {
+        try {
+            cf.createContext("guest", "guest");
+            fail("Should not be able to create connection using bad credentials");
+        } catch (JMSRuntimeException jmsse) {}
+
+        assertEquals(0, cf.getNumConnections());
+
+        try {
+            JMSContext context = cf.createContext("admin", "admin");
+            context.close();
+        } catch (JMSRuntimeException jmsse) {
             fail("Should be able to create connection using bad credentials");
         }
 
@@ -136,6 +178,51 @@ public class JmsPoolConnectionSecurityExceptionTest extends JmsPoolTestSupport {
         try {
             cf.createConnection("admin", "admin");
         } catch (JMSSecurityException jmsse) {
+            fail("Should not be able to create connection using bad credentials");
+        }
+
+        // We should have two now, the good one and the old failed one
+        assertEquals(2, cf.getNumConnections());
+    }
+
+    @Test
+    public void testDefferedConectionAuthenticationErrorWithJMSContext() throws JMSException {
+        // Don't throw on create fail on connection start
+        factory.setDeferAuthenticationToConnection(true);
+
+        JMSContext context = null;
+        try {
+            context = cf.createContext("guest", "guest");
+        } catch (JMSRuntimeException jmsse) {
+            fail("Should be able to create connection using bad credentials");
+        }
+
+        assertEquals(1, cf.getNumConnections());
+
+        try {
+            context.start();
+            fail("Should not be able to start connection using bad credentials");
+        } catch (JMSRuntimeException jmsse) {
+        } finally {
+            if (context != null) {
+                context.close();
+            }
+        }
+
+        // Try again, it should just hand back the original failed connection in this case.
+        try {
+            context = cf.createContext("guest", "guest");
+        } catch (JMSRuntimeException jmsse) {
+            fail("Should be able to create connection using bad credentials");
+        }
+
+        assertEquals(1, cf.getNumConnections());
+
+        // Try a new connection using valid credentials, the pool should create a new
+        // Connection under the specified user / pass key which should work.
+        try {
+            cf.createContext("admin", "admin");
+        } catch (JMSRuntimeException jmsse) {
             fail("Should not be able to create connection using bad credentials");
         }
 

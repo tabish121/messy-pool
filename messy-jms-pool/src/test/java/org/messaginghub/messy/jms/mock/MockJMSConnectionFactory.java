@@ -27,8 +27,11 @@ import javax.jms.JMSException;
 import javax.jms.JMSSecurityException;
 import javax.jms.QueueConnection;
 import javax.jms.QueueConnectionFactory;
+import javax.jms.Session;
 import javax.jms.TopicConnection;
 import javax.jms.TopicConnectionFactory;
+
+import org.messaginghub.messy.jms.util.JMSExceptionSupport;
 
 /**
  * Mock JMS ConnectionFactory used to create Mock Connections
@@ -98,22 +101,35 @@ public class MockJMSConnectionFactory implements ConnectionFactory, QueueConnect
 
     @Override
     public JMSContext createContext() {
-        throw new UnsupportedOperationException("Context Not Implemented");
+        return createMockContext(null, null, Session.AUTO_ACKNOWLEDGE);
     }
 
     @Override
     public JMSContext createContext(int sessionMode) {
-        throw new UnsupportedOperationException("Context Not Implemented");
+        return createMockContext(null, null, sessionMode);
     }
 
     @Override
-    public JMSContext createContext(String userName, String password) {
-        throw new UnsupportedOperationException("Context Not Implemented");
+    public JMSContext createContext(String username, String password) {
+        return createMockContext(username, password, Session.AUTO_ACKNOWLEDGE);
     }
 
     @Override
-    public JMSContext createContext(String userName, String password, int sessionMode) {
-        throw new UnsupportedOperationException("Context Not Implemented");
+    public JMSContext createContext(String username, String password, int sessionMode) {
+        return createMockContext(username, password, sessionMode);
+    }
+
+    private MockJMSContext createMockContext(String username, String password, int sessionMode) {
+        final MockJMSConnection connection;
+        try {
+            connection = createMockConnection(username, password);
+        } catch (JMSException jmsex) {
+            throw JMSExceptionSupport.createRuntimeException(jmsex);
+        }
+
+        MockJMSContext context = new MockJMSContext(connection, sessionMode);
+
+        return context;
     }
 
     //----- Factory Configuration --------------------------------------------//

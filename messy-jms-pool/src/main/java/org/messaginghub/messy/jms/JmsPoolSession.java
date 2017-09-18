@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.jms.BytesMessage;
 import javax.jms.Destination;
+import javax.jms.IllegalStateException;
 import javax.jms.JMSException;
 import javax.jms.MapMessage;
 import javax.jms.Message;
@@ -50,6 +51,7 @@ import javax.transaction.xa.XAResource;
 import org.apache.commons.pool2.KeyedObjectPool;
 import org.messaginghub.messy.jms.pool.PooledSessionHolder;
 import org.messaginghub.messy.jms.pool.PooledSessionKey;
+import org.messaginghub.messy.jms.util.JMSExceptionSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -266,7 +268,12 @@ public class JmsPoolSession implements Session, TopicSession, QueueSession, XASe
 
     @Override
     public XAResource getXAResource() {
-        PooledSessionHolder session = safeGetSessionHolder();
+        final PooledSessionHolder session;
+        try {
+            session = safeGetSessionHolder();
+        } catch (JMSException e) {
+            throw JMSExceptionSupport.createRuntimeException(e);
+        }
 
         if (session.getSession() instanceof XASession) {
             return ((XASession) session.getSession()).getXAResource();
@@ -282,7 +289,13 @@ public class JmsPoolSession implements Session, TopicSession, QueueSession, XASe
 
     @Override
     public void run() {
-        PooledSessionHolder session = safeGetSessionHolder();
+        final PooledSessionHolder session;
+        try {
+            session = safeGetSessionHolder();
+        } catch (JMSException e) {
+            throw JMSExceptionSupport.createRuntimeException(e);
+        }
+
         if (session != null) {
             session.getSession().run();
         }
@@ -416,7 +429,7 @@ public class JmsPoolSession implements Session, TopicSession, QueueSession, XASe
         return new JmsPoolTopicPublisher(safeGetSessionHolder().getConnection(), getTopicPublisher(topic), topic);
     }
 
-    public Session getInternalSession() throws IllegalStateException {
+    public Session getInternalSession() throws JMSException {
         return safeGetSessionHolder().getSession();
     }
 
@@ -502,7 +515,11 @@ public class JmsPoolSession implements Session, TopicSession, QueueSession, XASe
 
     @Override
     public String toString() {
-        return getClass().getSimpleName() + " { " + safeGetSessionHolder() + " }";
+        try {
+            return getClass().getSimpleName() + " { " + safeGetSessionHolder() + " }";
+        } catch (JMSException e) {
+            return getClass().getSimpleName() + " { " + null + " }";
+        }
     }
 
     /**
@@ -531,7 +548,7 @@ public class JmsPoolSession implements Session, TopicSession, QueueSession, XASe
         browsers.remove(browser);
     }
 
-    private PooledSessionHolder safeGetSessionHolder() {
+    private PooledSessionHolder safeGetSessionHolder() throws JMSException {
         PooledSessionHolder sessionHolder = this.sessionHolder;
         if (sessionHolder == null) {
             throw new IllegalStateException("The session has already been closed");
