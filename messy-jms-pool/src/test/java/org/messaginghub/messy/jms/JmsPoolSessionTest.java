@@ -17,12 +17,17 @@
 package org.messaginghub.messy.jms;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.util.concurrent.CountDownLatch;
+
 import javax.jms.IllegalStateException;
+import javax.jms.IllegalStateRuntimeException;
+import javax.jms.JMSRuntimeException;
 import javax.jms.Queue;
 import javax.jms.Session;
 import javax.jms.TemporaryQueue;
@@ -36,6 +41,94 @@ import org.messaginghub.messy.jms.mock.MockJMSTemporaryTopic;
 import org.messaginghub.messy.jms.mock.MockJMSTopic;
 
 public class JmsPoolSessionTest extends JmsPoolTestSupport {
+
+    @Test(timeout = 60000)
+    public void testToString() throws Exception {
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createConnection();
+        Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+        assertNotNull(session.toString());
+        session.close();
+        assertNotNull(session.toString());
+    }
+
+    @Test(timeout = 60000)
+    public void testIsIgnoreClose() throws Exception {
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createConnection();
+        JmsPoolSession session = (JmsPoolSession) connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+        assertFalse(session.isIgnoreClose());
+        session.setIgnoreClose(true);
+        assertTrue(session.isIgnoreClose());
+    }
+
+    @Test(timeout = 60000)
+    public void testRun() throws Exception {
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createConnection();
+        Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+
+        try {
+            session.run();
+            fail("Session should be unable to run outside EE.");
+        } catch (JMSRuntimeException jmsre) {}
+
+        session.close();
+
+        try {
+            session.run();
+            fail("Session should be closed.");
+        } catch (IllegalStateRuntimeException isre) {}
+    }
+
+    @Test(timeout = 60000)
+    public void testGetXAResource() throws Exception {
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createConnection();
+        JmsPoolSession session = (JmsPoolSession) connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+
+        assertNull("Non-XA session should not return an XA Resource", session.getXAResource());
+
+        session.close();
+
+        try {
+            session.getXAResource();
+            fail("Session should be closed.");
+        } catch (IllegalStateRuntimeException isre) {}
+    }
+
+    @Test(timeout = 60000)
+    public void testClose() throws Exception {
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createConnection();
+        Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+
+        assertEquals(0, connection.getNumtIdleSessions());
+        session.close();
+        assertEquals(1, connection.getNumtIdleSessions());
+
+        try {
+            session.createTemporaryQueue();
+            fail("Session should be closed.");
+        } catch (IllegalStateException ise) {}
+    }
+
+    @Test(timeout = 60000)
+    public void testConnectionCloseReflectedInSessionState() throws Exception {
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createConnection();
+        Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+        connection.close();
+
+        try {
+            session.getAcknowledgeMode();
+            fail("Session should be closed.");
+        } catch (IllegalStateException isre) {}
+
+        try {
+            session.run();
+            fail("Session should be closed.");
+        } catch (IllegalStateRuntimeException isre) {}
+
+        try {
+            session.createTemporaryQueue();
+            fail("Session should be closed.");
+        } catch (IllegalStateException ise) {}
+    }
 
     @Test(timeout = 60000)
     public void testCreateQueue() throws Exception {
@@ -156,5 +249,51 @@ public class JmsPoolSessionTest extends JmsPoolTestSupport {
         assertEquals(2, connection.getNumSessions());
 
         connection.close();
+    }
+
+    @Test(timeout = 60000)
+    public void testAddSessionEventListener() throws Exception {
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createConnection();
+        JmsPoolSession session = (JmsPoolSession) connection.createSession();
+
+        final CountDownLatch tempTopicCreated = new CountDownLatch(2);
+        final CountDownLatch tempQueueCreated = new CountDownLatch(2);
+        final CountDownLatch sessionClosed = new CountDownLatch(2);
+
+
+        JmsPoolSessionEventListener listener = new JmsPoolSessionEventListener() {
+
+            @Override
+            public void onTemporaryTopicCreate(TemporaryTopic tempTopic) {
+                tempTopicCreated.countDown();
+            }
+
+            @Override
+            public void onTemporaryQueueCreate(TemporaryQueue tempQueue) {
+                tempQueueCreated.countDown();
+            }
+
+            @Override
+            public void onSessionClosed(JmsPoolSession session) {
+                sessionClosed.countDown();
+            }
+        };
+
+        session.addSessionEventListener(listener);
+        session.addSessionEventListener(listener);
+
+        assertNotNull(session.createTemporaryQueue());
+        assertNotNull(session.createTemporaryTopic());
+
+        session.close();
+
+        assertEquals(1, tempQueueCreated.getCount());
+        assertEquals(1, tempTopicCreated.getCount());
+        assertEquals(1, sessionClosed.getCount());
+
+        try {
+            session.addSessionEventListener(listener);
+            fail("Should throw on closed session.");
+        } catch (IllegalStateException ise) {}
     }
 }
