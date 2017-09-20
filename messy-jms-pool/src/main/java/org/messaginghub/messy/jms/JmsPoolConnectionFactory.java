@@ -733,7 +733,9 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
         props.setProperty("timeBetweenExpirationCheckMillis", Long.toString(getTimeBetweenExpirationCheckMillis()));
         props.setProperty("createConnectionOnStartup", Boolean.toString(isCreateConnectionOnStartup()));
         props.setProperty("useAnonymousProducers", Boolean.toString(isUseAnonymousProducers()));
+        props.setProperty("blockIfSessionPoolIsFull", Boolean.toString(isBlockIfSessionPoolIsFull()));
         props.setProperty("blockIfSessionPoolIsFullTimeout", Long.toString(getBlockIfSessionPoolIsFullTimeout()));
         props.setProperty("reconnectOnException", Boolean.toString(isReconnectOnException()));
+        props.setProperty("useProviderJMSContext", Boolean.toString(isUseProviderJMSContext()));
     }
 }
