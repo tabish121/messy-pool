@@ -16,8 +16,11 @@
  */
 package org.messaginghub.messy.jms;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
+import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -211,5 +214,60 @@ public class PooledConnectionTest extends ActiveMQJmsPoolTestSupport {
             // all good, test succeeded
             return new Boolean(true);
         }
+    }
+
+    @Test(timeout = 60000)
+    public void testAllSessionsAvailableOnConstrainedPool() throws Exception {
+        JmsPoolConnectionFactory cf = new JmsPoolConnectionFactory();
+        cf.setConnectionFactory(new ActiveMQConnectionFactory(
+                "vm://localhost?broker.persistent=false&broker.useJmx=false&broker.schedulerSupport=false"));
+        cf.setMaxConnections(5);
+        cf.setMaximumActiveSessionPerConnection(2);
+        cf.setBlockIfSessionPoolIsFull(false);
+
+        LinkedList<Connection> connections = new LinkedList<>();
+        HashSet<Session> sessions = new HashSet<>();
+
+        Connection connection = null;
+
+        for (int i = 0; i < 10; i++) {
+            connection = cf.createConnection();
+            LOG.info("connection: " + i + ", " + ((JmsPoolConnection) connection).getConnection());
+
+            connection.start();
+            connections.add(connection);
+            sessions.add(connection.createSession(false, Session.AUTO_ACKNOWLEDGE));
+        }
+
+        assertEquals(sessions.size(), 10);
+        assertEquals(connections.size(), 10);
+
+        Connection connectionToClose = connections.getLast();
+        connectionToClose.close();
+
+        connection = cf.createConnection();
+        LOG.info("connection:" + ((JmsPoolConnection) connection).getConnection());
+
+        connection.start();
+        connections.add(connection);
+        try {
+            sessions.add(connection.createSession(false, Session.AUTO_ACKNOWLEDGE));
+        } catch (JMSException expected) {
+            connection.close();
+        }
+
+        connection = cf.createConnection();
+        LOG.info("connection:" + ((JmsPoolConnection) connection).getConnection());
+
+        connection.start();
+        connections.add(connection);
+        try {
+            sessions.add(connection.createSession(false, Session.AUTO_ACKNOWLEDGE));
+        } catch (JMSException expected) {
+            connection.close();
+        }
+
+        assertEquals(sessions.size(), 10);
+        assertEquals(connections.size(), 12);
     }
 }
