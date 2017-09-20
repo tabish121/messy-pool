@@ -16,7 +16,9 @@
  */
 package org.messaginghub.messy.jms.mock;
 
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -61,6 +63,8 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
     private final MockJMSConnectionStats stats = new MockJMSConnectionStats();
     private final Map<String, MockJMSSession> sessions = new ConcurrentHashMap<>();
     private final Map<MockJMSTemporaryDestination, MockJMSTemporaryDestination> tempDestinations = new ConcurrentHashMap<>();
+
+    private final Set<MockJMSConnectionListener> connectionListeners = new HashSet<>();
 
     private final AtomicBoolean closed = new AtomicBoolean();
     private final AtomicBoolean connected = new AtomicBoolean();
@@ -157,6 +161,7 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
         ensureConnected();
         int ackMode = getSessionAcknowledgeMode(transacted, acknowledgeMode);
         MockJMSSession result = new MockJMSSession(getNextSessionId(), ackMode, this);
+        signalCreateSession(result);
         addSession(result);
         if (started.get()) {
             result.start();
@@ -298,6 +303,18 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
         return stats;
     }
 
+    public void addConnectionListener(MockJMSConnectionListener listener) throws JMSException {
+        checkClosedOrFailed();
+        if (listener != null) {
+            connectionListeners.add(listener);
+        }
+    }
+
+    public void removeConnetionListener(MockJMSConnectionListener listener) throws JMSException {
+        checkClosedOrFailed();
+        connectionListeners.remove(listener);
+    }
+
     //----- Mock Connection behavioral control -------------------------------//
 
     public void injectConnectionFailure(Exception error) throws JMSException {
@@ -351,6 +368,7 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
     protected TemporaryQueue createTemporaryQueue() throws JMSException {
         String destinationName = connectionId.toString() + ":" + tempDestIdGenerator.incrementAndGet();
         MockJMSTemporaryQueue queue = new MockJMSTemporaryQueue(destinationName);
+        signalCreateTemporaryDestination(queue);
         tempDestinations.put(queue, queue);
         queue.setConnection(this);
         stats.temporaryDestinationCreated(queue);
@@ -360,6 +378,7 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
     protected TemporaryTopic createTemporaryTopic() throws JMSException {
         String destinationName = connectionId.toString() + ":" + tempDestIdGenerator.incrementAndGet();
         MockJMSTemporaryTopic topic = new MockJMSTemporaryTopic(destinationName);
+        signalCreateTemporaryDestination(topic);
         tempDestinations.put(topic, topic);
         topic.setConnection(this);
         stats.temporaryDestinationCreated(topic);
@@ -452,6 +471,7 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
                 }
             }
 
+            signalDeleteTemporaryDestination(destination);
             stats.temporaryDestinationDestroyed(destination);
             tempDestinations.remove(destination);
         } catch (Exception e) {
@@ -461,5 +481,31 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
 
     boolean isTemporaryDestinationDeleted(MockJMSTemporaryDestination destination) {
         return !tempDestinations.containsKey(destination);
+    }
+
+    private void signalCreateSession(MockJMSSession result) throws JMSException {
+        for (MockJMSConnectionListener listener : connectionListeners) {
+            listener.onCreateSession(result);
+        }
+    }
+
+    private void signalCreateTemporaryDestination(MockJMSTemporaryDestination destination) throws JMSException {
+        for (MockJMSConnectionListener listener : connectionListeners) {
+            if (destination.isQueue()) {
+                listener.onCreateTemporaryQueue((MockJMSTemporaryQueue) destination);
+            } else {
+                listener.onCreateTemporaryTopic((MockJMSTemporaryTopic) destination);
+            }
+        }
+    }
+
+    private void signalDeleteTemporaryDestination(MockJMSTemporaryDestination destination) throws JMSException {
+        for (MockJMSConnectionListener listener : connectionListeners) {
+            if (destination.isQueue()) {
+                listener.onDeleteTemporaryQueue((MockJMSTemporaryQueue) destination);
+            } else {
+                listener.onDeleteTemporaryTopic((MockJMSTemporaryTopic) destination);
+            }
+        }
     }
 }

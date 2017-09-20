@@ -20,14 +20,19 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.jms.IllegalStateException;
 import javax.jms.IllegalStateRuntimeException;
+import javax.jms.JMSException;
 import javax.jms.JMSRuntimeException;
+import javax.jms.Message;
+import javax.jms.MessageListener;
 import javax.jms.Queue;
 import javax.jms.Session;
 import javax.jms.TemporaryQueue;
@@ -36,6 +41,8 @@ import javax.jms.Topic;
 
 import org.junit.Test;
 import org.messaginghub.messy.jms.mock.MockJMSQueue;
+import org.messaginghub.messy.jms.mock.MockJMSSession;
+import org.messaginghub.messy.jms.mock.MockJMSSessionListener;
 import org.messaginghub.messy.jms.mock.MockJMSTemporaryQueue;
 import org.messaginghub.messy.jms.mock.MockJMSTemporaryTopic;
 import org.messaginghub.messy.jms.mock.MockJMSTopic;
@@ -58,6 +65,19 @@ public class JmsPoolSessionTest extends JmsPoolTestSupport {
         assertFalse(session.isIgnoreClose());
         session.setIgnoreClose(true);
         assertTrue(session.isIgnoreClose());
+    }
+
+    @Test(timeout = 60000)
+    public void testIgnoreClose() throws Exception {
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createConnection();
+        JmsPoolSession session = (JmsPoolSession) connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+        assertFalse(session.isIgnoreClose());
+        session.setIgnoreClose(true);
+        assertTrue(session.isIgnoreClose());
+
+        session.close();
+
+        assertEquals(Session.AUTO_ACKNOWLEDGE, session.getAcknowledgeMode());
     }
 
     @Test(timeout = 60000)
@@ -103,9 +123,63 @@ public class JmsPoolSessionTest extends JmsPoolTestSupport {
         assertEquals(1, connection.getNumtIdleSessions());
 
         try {
+            session.close();
+        } catch (JMSException ex) {
+            fail("Shouldn't fail on second close call.");
+        }
+
+        try {
             session.createTemporaryQueue();
             fail("Session should be closed.");
         } catch (IllegalStateException ise) {}
+    }
+
+    @Test(timeout = 60000)
+    public void testCloseOnTXSessionTriggersRollback() throws Exception {
+        final AtomicBoolean rolledBack = new AtomicBoolean();
+
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createConnection();
+        JmsPoolSession session = (JmsPoolSession) connection.createSession(Session.SESSION_TRANSACTED);
+        MockJMSSession mockSession = (MockJMSSession) session.getInternalSession();
+        mockSession.addSessionListener(new MockJMSSessionListener() {
+
+            @Override
+            public void onSessionRollback(MockJMSSession session) throws JMSException {
+                rolledBack.set(true);
+            }
+        });
+
+        session.close();
+        assertTrue("Session should rollback on close" , rolledBack.get());
+    }
+
+    @Test(timeout = 60000)
+    public void testCloseWithErrorOnRollbackInvalidatesSession() throws Exception {
+        final AtomicBoolean rolledBack = new AtomicBoolean();
+
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createConnection();
+        JmsPoolSession session = (JmsPoolSession) connection.createSession(Session.SESSION_TRANSACTED);
+
+        assertEquals(1, connection.getNumSessions());
+        assertEquals(0, connection.getNumtIdleSessions());
+
+        MockJMSSession mockSession = (MockJMSSession) session.getInternalSession();
+        mockSession.addSessionListener(new MockJMSSessionListener() {
+
+            @Override
+            public void onSessionRollback(MockJMSSession session) throws JMSException {
+                rolledBack.set(true);
+
+                throw new JMSException("Failed to rollback");
+            }
+        });
+
+        session.close();
+
+        assertTrue("Session should rollback on close" , rolledBack.get());
+
+        assertEquals(0, connection.getNumSessions());
+        assertEquals(0, connection.getNumtIdleSessions());
     }
 
     @Test(timeout = 60000)
@@ -260,7 +334,6 @@ public class JmsPoolSessionTest extends JmsPoolTestSupport {
         final CountDownLatch tempQueueCreated = new CountDownLatch(2);
         final CountDownLatch sessionClosed = new CountDownLatch(2);
 
-
         JmsPoolSessionEventListener listener = new JmsPoolSessionEventListener() {
 
             @Override
@@ -295,5 +368,125 @@ public class JmsPoolSessionTest extends JmsPoolTestSupport {
             session.addSessionEventListener(listener);
             fail("Should throw on closed session.");
         } catch (IllegalStateException ise) {}
+    }
+
+    @Test(timeout = 60000)
+    public void testCreateDurableSubscriber() throws Exception {
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createConnection();
+        JmsPoolSession session = (JmsPoolSession) connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+
+        Topic topic = session.createTopic(getTestName());
+        assertNotNull(session.createDurableSubscriber(topic, "name"));
+
+        session.close();
+        try {
+            session.createDurableSubscriber(topic, "name-2");
+            fail("Should not be able to createDurableSubscriber when closed");
+        } catch (JMSException ex) {}
+    }
+
+    @Test(timeout = 60000)
+    public void testCreateDurableSubscriberWithSelectorAndNoLocal() throws Exception {
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createConnection();
+        JmsPoolSession session = (JmsPoolSession) connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+
+        Topic topic = session.createTopic(getTestName());
+        assertNotNull(session.createDurableSubscriber(topic, "name", "color = red", false));
+
+        session.close();
+        try {
+            session.createDurableSubscriber(topic, "other-name", "color = greean", true);
+            fail("Should not be able to createDurableSubscriber when closed");
+        } catch (JMSException ex) {}
+    }
+
+    @Test(timeout = 60000)
+    public void testCreateSubscriber() throws Exception {
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createConnection();
+        JmsPoolSession session = (JmsPoolSession) connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+
+        Topic topic = session.createTopic(getTestName());
+        assertNotNull(session.createSubscriber(topic));
+
+        session.close();
+        try {
+            session.createSubscriber(topic);
+            fail("Should not be able to createSubscriber when closed");
+        } catch (JMSException ex) {}
+    }
+
+    @Test(timeout = 60000)
+    public void testCreateSubscriberWithSelectorAndNoLocal() throws Exception {
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createConnection();
+        JmsPoolSession session = (JmsPoolSession) connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+
+        Topic topic = session.createTopic(getTestName());
+        assertNotNull(session.createSubscriber(topic, "color = red", false));
+
+        session.close();
+        try {
+            session.createSubscriber(topic, "color = greean", true);
+            fail("Should not be able to createSubscriber when closed");
+        } catch (JMSException ex) {}
+    }
+
+    @Test(timeout = 60000)
+    public void testCreateReceiver() throws Exception {
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createConnection();
+        JmsPoolSession session = (JmsPoolSession) connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+
+        Queue queue = session.createQueue(getTestName());
+        assertNotNull(session.createReceiver(queue));
+
+        session.close();
+        try {
+            session.createReceiver(queue);
+            fail("Should not be able to createReceiver when closed");
+        } catch (JMSException ex) {}
+    }
+
+    @Test(timeout = 60000)
+    public void testCreateReceiverWithSelector() throws Exception {
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createConnection();
+        JmsPoolSession session = (JmsPoolSession) connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+
+        Queue queue = session.createQueue(getTestName());
+        assertNotNull(session.createReceiver(queue, "color = red"));
+
+        session.close();
+        try {
+            session.createReceiver(queue, "color = greean");
+            fail("Should not be able to createReceiver when closed");
+        } catch (JMSException ex) {}
+    }
+
+    @Test(timeout = 60000)
+    public void testSetMessageListener() throws Exception {
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createConnection();
+        JmsPoolSession session = (JmsPoolSession) connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+
+        MessageListener listener = new MessageListener() {
+
+            @Override
+            public void onMessage(Message message) {
+            }
+        };
+
+        session.setMessageListener(listener);
+        assertSame(listener, session.getMessageListener());
+        MockJMSSession mockSession = (MockJMSSession) session.getInternalSession();
+        assertSame(listener, mockSession.getMessageListener());
+
+        session.close();
+
+        try {
+            session.setMessageListener((message) -> {});
+            fail("Should not be able to setMessageListener when closed");
+        } catch (JMSException ex) {}
+
+        try {
+            session.getMessageListener();
+            fail("Should not be able to setMessageListener when closed");
+        } catch (JMSException ex) {}
     }
 }

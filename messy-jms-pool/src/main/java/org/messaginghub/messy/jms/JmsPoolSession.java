@@ -290,6 +290,16 @@ public class JmsPoolSession implements Session, TopicSession, QueueSession, XASe
     //----- Java EE Session run entry point ----------------------------------//
 
     @Override
+    public MessageListener getMessageListener() throws JMSException {
+        return getInternalSession().getMessageListener();
+    }
+
+    @Override
+    public void setMessageListener(MessageListener messageListener) throws JMSException {
+        getInternalSession().setMessageListener(messageListener);
+    }
+
+    @Override
     public void run() {
         final PooledSessionHolder session;
         try {
@@ -338,16 +348,6 @@ public class JmsPoolSession implements Session, TopicSession, QueueSession, XASe
     @Override
     public TopicSubscriber createDurableSubscriber(Topic topic, String name, String selector, boolean noLocal) throws JMSException {
         return addTopicSubscriber(getInternalSession().createDurableSubscriber(topic, name, selector, noLocal));
-    }
-
-    @Override
-    public MessageListener getMessageListener() throws JMSException {
-        return getInternalSession().getMessageListener();
-    }
-
-    @Override
-    public void setMessageListener(MessageListener messageListener) throws JMSException {
-        getInternalSession().setMessageListener(messageListener);
     }
 
     @Override

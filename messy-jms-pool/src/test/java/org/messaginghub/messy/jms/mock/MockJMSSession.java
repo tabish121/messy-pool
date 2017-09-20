@@ -17,7 +17,9 @@
 package org.messaginghub.messy.jms.mock;
 
 import java.io.Serializable;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -61,6 +63,8 @@ public class MockJMSSession implements Session, QueueSession, TopicSession, Auto
 
     private final Map<String, MockJMSMessageProducer> producers = new ConcurrentHashMap<>();
     private final Map<String, MockJMSMessageConsumer> consumers = new ConcurrentHashMap<>();
+
+    private final Set<MockJMSSessionListener> sessionListeners = new HashSet<>();
 
     private final String sessionId;
     private final int sessionMode;
@@ -109,6 +113,10 @@ public class MockJMSSession implements Session, QueueSession, TopicSession, Auto
         if (!getTransacted()) {
             throw new IllegalStateException("Session is not transacted");
         }
+
+        for (MockJMSSessionListener listener : sessionListeners) {
+            listener.onSessionCommit(this);
+        }
     }
 
     @Override
@@ -117,6 +125,10 @@ public class MockJMSSession implements Session, QueueSession, TopicSession, Auto
 
         if (!getTransacted()) {
             throw new IllegalStateException("Session is not transacted");
+        }
+
+        for (MockJMSSessionListener listener : sessionListeners) {
+            listener.onSessionRollback(this);
         }
     }
 
@@ -148,6 +160,18 @@ public class MockJMSSession implements Session, QueueSession, TopicSession, Auto
 
     public MockJMSConnection getConnection() {
         return connection;
+    }
+
+    public void addSessionListener(MockJMSSessionListener listener) throws JMSException {
+        checkClosed();
+        if (listener != null) {
+            sessionListeners.add(listener);
+        }
+    }
+
+    public void removeSessionListener(MockJMSSessionListener listener) throws JMSException {
+        checkClosed();
+        sessionListeners.remove(listener);
     }
 
     //----- Message Factory Methods ------------------------------------------//
@@ -378,7 +402,7 @@ public class MockJMSSession implements Session, QueueSession, TopicSession, Auto
         // TODO Auto-generated method stub
     }
 
-    public void acknowledge() throws JMSException {
+    void acknowledge() throws JMSException {
         // TODO Auto-generated method stub
     }
 
