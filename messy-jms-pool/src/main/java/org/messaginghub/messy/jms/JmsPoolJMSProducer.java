@@ -36,6 +36,7 @@ import javax.jms.JMSRuntimeException;
 import javax.jms.MapMessage;
 import javax.jms.Message;
 import javax.jms.MessageFormatException;
+import javax.jms.MessageProducer;
 import javax.jms.ObjectMessage;
 import javax.jms.TextMessage;
 
@@ -384,7 +385,7 @@ public class JmsPoolJMSProducer implements JMSProducer {
 
     @Override
     public long getDeliveryDelay() {
-        throw new JMSRuntimeException("Pooled JMSProducer cannot use delivery delay");
+        return 0;
     }
 
     @Override
@@ -411,7 +412,7 @@ public class JmsPoolJMSProducer implements JMSProducer {
 
     @Override
     public boolean getDisableMessageID() {
-        throw new JMSRuntimeException("Pooled JMSProducer cannot disable message IDs");
+        return false;
     }
 
     @Override
@@ -421,7 +422,7 @@ public class JmsPoolJMSProducer implements JMSProducer {
 
     @Override
     public boolean getDisableMessageTimestamp() {
-        throw new JMSRuntimeException("Pooled JMSProducer cannot disable message time stamps");
+        return false;
     }
 
     @Override
@@ -453,6 +454,14 @@ public class JmsPoolJMSProducer implements JMSProducer {
     public JMSProducer setTimeToLive(long timeToLive) {
         this.timeToLive = timeToLive;
         return this;
+    }
+
+    public MessageProducer getMessageProducer() throws JMSRuntimeException {
+        try {
+            return producer.getMessageProducer();
+        } catch (JMSException jmsex) {
+            throw JMSExceptionSupport.createRuntimeException(jmsex);
+        }
     }
 
     //----- Internal support methods -----------------------------------------//
