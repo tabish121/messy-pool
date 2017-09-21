@@ -273,7 +273,7 @@ public class MockJMSSession implements Session, QueueSession, TopicSession, Auto
     public TopicSubscriber createSubscriber(Topic topic, String messageSelector, boolean noLocal) throws JMSException {
         checkClosed();
         checkDestination(topic);
-        return new MockJMSTopicSubscriber(this, getNextConsumerId(), (MockJMSTopic) topic, messageSelector, noLocal);
+        return new MockJMSTopicSubscriber(this, getNextConsumerId(), (MockJMSDestination) topic, messageSelector, noLocal);
     }
 
     @Override
@@ -285,7 +285,7 @@ public class MockJMSSession implements Session, QueueSession, TopicSession, Auto
     public QueueReceiver createReceiver(Queue queue, String messageSelector) throws JMSException {
         checkClosed();
         checkDestination(queue);
-        return new MockJMSQueueReceiver(this, getNextConsumerId(), (MockJMSQueue) queue, messageSelector);
+        return new MockJMSQueueReceiver(this, getNextConsumerId(), (MockJMSDestination) queue, messageSelector);
     }
 
     @Override
@@ -316,7 +316,7 @@ public class MockJMSSession implements Session, QueueSession, TopicSession, Auto
     public TopicSubscriber createDurableSubscriber(Topic topic, String name, String messageSelector, boolean noLocal) throws JMSException {
         checkClosed();
         checkDestination(topic);
-        return new MockJMSTopicSubscriber(this, getNextConsumerId(), (MockJMSTopic) topic, messageSelector, noLocal);
+        return new MockJMSTopicSubscriber(this, getNextConsumerId(), (MockJMSDestination) topic, messageSelector, noLocal);
     }
 
     //----- Browser Factory Methods ------------------------------------------//
@@ -330,7 +330,7 @@ public class MockJMSSession implements Session, QueueSession, TopicSession, Auto
     public QueueBrowser createBrowser(Queue queue, String messageSelector) throws JMSException {
         checkClosed();
         checkDestination(queue);
-        return new MockJMSQueueBrowser(this, getNextConsumerId(), (MockJMSQueue) queue, messageSelector);
+        return new MockJMSQueueBrowser(this, getNextConsumerId(), (MockJMSDestination) queue, messageSelector);
     }
 
     //----- Destination Factory Methods --------------------------------------//

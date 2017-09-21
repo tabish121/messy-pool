@@ -37,9 +37,9 @@ public class MockJMSQueueBrowser implements QueueBrowser, AutoCloseable, Enumera
     private final MockJMSSession session;
     private final String browserId;
     private final String messageSelector;
-    private final MockJMSQueue queue;
+    private final MockJMSDestination queue;
 
-    public MockJMSQueueBrowser(MockJMSSession session, String browserId, MockJMSQueue queue, String messageSelector) {
+    public MockJMSQueueBrowser(MockJMSSession session, String browserId, MockJMSDestination queue, String messageSelector) {
         this.session = session;
         this.browserId = browserId;
         this.queue = queue;
@@ -74,7 +74,7 @@ public class MockJMSQueueBrowser implements QueueBrowser, AutoCloseable, Enumera
     @Override
     public Queue getQueue() throws JMSException {
         checkClosed();
-        return queue;
+        return (Queue) queue;
     }
 
     @Override

@@ -47,7 +47,7 @@ public class JmsPoolQueueReceiver extends JmsPoolMessageConsumer implements Queu
         return getClass().getSimpleName() + " { " + getDelegate() + " }";
     }
 
-    public QueueReceiver getQueueReceiver() {
-        return (QueueReceiver) super.getDelegate();
+    public QueueReceiver getQueueReceiver() throws JMSException {
+        return (QueueReceiver) super.getMessageConsumer();
     }
 }
