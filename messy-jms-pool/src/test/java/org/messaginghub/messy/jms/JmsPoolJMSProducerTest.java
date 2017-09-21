@@ -123,11 +123,10 @@ public class JmsPoolJMSProducerTest extends JmsPoolTestSupport {
 
         context.close();
 
-        // TODO
-//        try {
-//            producer.getMessageProducer();
-//            fail("should throw on closed context.");
-//        } catch (JMSRuntimeException jmsre) {}
+        try {
+            producer.getMessageProducer();
+            fail("should throw on closed context.");
+        } catch (JMSRuntimeException jmsre) {}
     }
 
     @Test(timeout = 30000)

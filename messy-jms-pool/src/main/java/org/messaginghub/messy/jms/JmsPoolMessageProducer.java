@@ -25,14 +25,12 @@ import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.MessageProducer;
 
-import org.messaginghub.messy.jms.pool.PooledConnection;
-
 /**
  * A pooled {@link MessageProducer}
  */
 public class JmsPoolMessageProducer implements MessageProducer, AutoCloseable {
 
-    private final PooledConnection connection;
+    private final JmsPoolSession session;
     private final MessageProducer messageProducer;
     private final Destination destination;
 
@@ -46,10 +44,10 @@ public class JmsPoolMessageProducer implements MessageProducer, AutoCloseable {
     private long timeToLive;
     private long deliveryDelay;
 
-    public JmsPoolMessageProducer(PooledConnection connection, MessageProducer messageProducer, Destination destination) throws JMSException {
+    public JmsPoolMessageProducer(JmsPoolSession session, MessageProducer messageProducer, Destination destination) throws JMSException {
+        this.session = session;
         this.messageProducer = messageProducer;
         this.destination = destination;
-        this.connection = connection;
         this.anonymous = messageProducer.getDestination() == null;
 
         this.deliveryMode = messageProducer.getDeliveryMode();
@@ -58,7 +56,7 @@ public class JmsPoolMessageProducer implements MessageProducer, AutoCloseable {
         this.priority = messageProducer.getPriority();
         this.timeToLive = messageProducer.getTimeToLive();
 
-        if (connection.isJMSVersionSupported(2, 0)) {
+        if (session.isJMSVersionSupported(2, 0)) {
             this.deliveryDelay = messageProducer.getDeliveryDelay();
         }
     }
@@ -66,6 +64,7 @@ public class JmsPoolMessageProducer implements MessageProducer, AutoCloseable {
     @Override
     public void close() throws JMSException {
         if (closed.compareAndSet(false, true)) {
+            session.onMessageProducerClosed(this);
             if (!anonymous) {
                 this.messageProducer.close();
             }
@@ -227,14 +226,14 @@ public class JmsPoolMessageProducer implements MessageProducer, AutoCloseable {
     @Override
     public long getDeliveryDelay() throws JMSException {
         checkClosed();
-        connection.checkClientJMSVersionSupport(2, 0);
+        session.checkClientJMSVersionSupport(2, 0);
         return deliveryDelay;
     }
 
     @Override
     public void setDeliveryDelay(long deliveryDelay) throws JMSException {
         checkClosed();
-        connection.checkClientJMSVersionSupport(2, 0);
+        session.checkClientJMSVersionSupport(2, 0);
         if (anonymous) {
             this.deliveryDelay = deliveryDelay;
             this.messageProducer.setDeliveryDelay(deliveryDelay);

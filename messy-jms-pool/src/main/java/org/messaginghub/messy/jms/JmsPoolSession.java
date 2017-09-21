@@ -17,7 +17,6 @@
 package org.messaginghub.messy.jms;
 
 import java.io.Serializable;
-import java.util.Iterator;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -60,9 +59,10 @@ public class JmsPoolSession implements Session, TopicSession, QueueSession, XASe
 
     private final PooledSessionKey key;
     private final KeyedObjectPool<PooledSessionKey, PooledSessionHolder> sessionPool;
-    private final CopyOnWriteArrayList<MessageConsumer> consumers = new CopyOnWriteArrayList<MessageConsumer>();
-    private final CopyOnWriteArrayList<QueueBrowser> browsers = new CopyOnWriteArrayList<QueueBrowser>();
-    private final CopyOnWriteArrayList<JmsPoolSessionEventListener> sessionEventListeners = new CopyOnWriteArrayList<JmsPoolSessionEventListener>();
+    private final CopyOnWriteArrayList<MessageProducer> producers = new CopyOnWriteArrayList<>();
+    private final CopyOnWriteArrayList<MessageConsumer> consumers = new CopyOnWriteArrayList<>();
+    private final CopyOnWriteArrayList<QueueBrowser> browsers = new CopyOnWriteArrayList<>();
+    private final CopyOnWriteArrayList<JmsPoolSessionEventListener> sessionEventListeners = new CopyOnWriteArrayList<>();
     private final AtomicBoolean closed = new AtomicBoolean();
 
     private PooledSessionHolder sessionHolder;
@@ -91,16 +91,22 @@ public class JmsPoolSession implements Session, TopicSession, QueueSession, XASe
                 // lets reset the session
                 getInternalSession().setMessageListener(null);
 
-                // Close any consumers and browsers that may have been created.
-                for (Iterator<MessageConsumer> iter = consumers.iterator(); iter.hasNext();) {
-                    MessageConsumer consumer = iter.next();
+                // Close any consumers, producers and browsers that may have been created.
+                for (MessageConsumer consumer : consumers) {
                     consumer.close();
                 }
 
-                for (Iterator<QueueBrowser> iter = browsers.iterator(); iter.hasNext();) {
-                    QueueBrowser browser = iter.next();
+                for (QueueBrowser browser : browsers) {
                     browser.close();
                 }
+
+                for (MessageProducer producer : producers) {
+                    producer.close();
+                }
+
+                consumers.clear();
+                producers.clear();
+                browsers.clear();
 
                 if (transactional && !isXa) {
                     try {
@@ -418,17 +424,17 @@ public class JmsPoolSession implements Session, TopicSession, QueueSession, XASe
 
     @Override
     public MessageProducer createProducer(Destination destination) throws JMSException {
-        return new JmsPoolMessageProducer(safeGetSessionHolder().getConnection(), getMessageProducer(destination), destination);
+        return addMessageProducer(getMessageProducer(destination), destination);
     }
 
     @Override
     public QueueSender createSender(Queue queue) throws JMSException {
-        return new JmsPoolQueueSender(safeGetSessionHolder().getConnection(), getQueueSender(queue), queue);
+        return addQueueSender(getQueueSender(queue), queue);
     }
 
     @Override
     public TopicPublisher createPublisher(Topic topic) throws JMSException {
-        return new JmsPoolTopicPublisher(safeGetSessionHolder().getConnection(), getTopicPublisher(topic), topic);
+        return addTopicPublisher(getTopicPublisher(topic), topic);
     }
 
     //----- Session configuration methods ------------------------------------//
@@ -444,11 +450,11 @@ public class JmsPoolSession implements Session, TopicSession, QueueSession, XASe
         return safeGetSessionHolder().getSession();
     }
 
-    public MessageProducer getMessageProducer() throws JMSException {
+    MessageProducer getMessageProducer() throws JMSException {
         return getMessageProducer(null);
     }
 
-    public MessageProducer getMessageProducer(Destination destination) throws JMSException {
+    MessageProducer getMessageProducer(Destination destination) throws JMSException {
         MessageProducer result = null;
 
         if (useAnonymousProducers) {
@@ -460,11 +466,11 @@ public class JmsPoolSession implements Session, TopicSession, QueueSession, XASe
         return result;
     }
 
-    public QueueSender getQueueSender() throws JMSException {
+    QueueSender getQueueSender() throws JMSException {
         return getQueueSender(null);
     }
 
-    public QueueSender getQueueSender(Queue destination) throws JMSException {
+    QueueSender getQueueSender(Queue destination) throws JMSException {
         QueueSender result = null;
 
         if (useAnonymousProducers) {
@@ -476,11 +482,11 @@ public class JmsPoolSession implements Session, TopicSession, QueueSession, XASe
         return result;
     }
 
-    public TopicPublisher getTopicPublisher() throws JMSException {
+    TopicPublisher getTopicPublisher() throws JMSException {
         return getTopicPublisher(null);
     }
 
-    public TopicPublisher getTopicPublisher(Topic destination) throws JMSException {
+    TopicPublisher getTopicPublisher(Topic destination) throws JMSException {
         TopicPublisher result = null;
 
         if (useAnonymousProducers) {
@@ -531,17 +537,38 @@ public class JmsPoolSession implements Session, TopicSession, QueueSession, XASe
     /**
      * Callback invoked when the consumer is closed.
      * <p>
-     * This is used to keep track of an explicit closed consumer created by this
+     * This is used to keep track of an explicit closed browser created by this
      * session so that the internal tracking data structures can be cleaned up.
      *
      * @param browser
-     * 		the consumer which is being closed.
+     * 		the browser which is being closed.
      */
     protected void onQueueBrowserClose(QueueBrowser browser) {
         browsers.remove(browser);
     }
 
+    /**
+     * Callback invoked when the producer is closed.
+     * <p>
+     * This is used to keep track of an explicit closed producer created by this
+     * session so that the internal tracking data structures can be cleaned up.
+     *
+     * @param producer
+     * 		the producer which is being closed.
+     */
+    protected void onMessageProducerClosed(MessageProducer producer) {
+        producers.remove(producer);
+    }
+
     //----- Internal support methods -----------------------------------------//
+
+    protected void checkClientJMSVersionSupport(int major, int minor) throws JMSException {
+        safeGetSessionHolder().getConnection().checkClientJMSVersionSupport(major, minor);
+    }
+
+    protected boolean isJMSVersionSupported(int major, int minor) throws JMSException {
+        return safeGetSessionHolder().getConnection().isJMSVersionSupported(major, minor);
+    }
 
     private void checkClosed() throws IllegalStateException {
         if (closed.get()) {
@@ -550,23 +577,45 @@ public class JmsPoolSession implements Session, TopicSession, QueueSession, XASe
     }
 
     private QueueBrowser addQueueBrowser(QueueBrowser browser) {
+        browser = new JmsPoolQueueBrowser(this, browser);
         browsers.add(browser);
-        return new JmsPoolQueueBrowser(this, browser);
+        return browser;
     }
 
     private MessageConsumer addConsumer(MessageConsumer consumer) {
+        consumer = new JmsPoolMessageConsumer(this, consumer);
         consumers.add(consumer);
-        return new JmsPoolMessageConsumer(this, consumer);
+        return consumer;
     }
 
     private TopicSubscriber addTopicSubscriber(TopicSubscriber subscriber) {
+        subscriber = new JmsPoolTopicSubscriber(this, subscriber);
         consumers.add(subscriber);
-        return new JmsPoolTopicSubscriber(this, subscriber);
+        return subscriber;
     }
 
     private QueueReceiver addQueueReceiver(QueueReceiver receiver) {
+        receiver = new JmsPoolQueueReceiver(this, receiver);
         consumers.add(receiver);
-        return new JmsPoolQueueReceiver(this, receiver);
+        return receiver;
+    }
+
+    private QueueSender addQueueSender(QueueSender sender, Queue queue) throws JMSException {
+        sender = new JmsPoolQueueSender(this, sender, queue);
+        producers.add(sender);
+        return sender;
+    }
+
+    private TopicPublisher addTopicPublisher(TopicPublisher publisher, Topic topic) throws JMSException {
+        publisher = new JmsPoolTopicPublisher(this, publisher, topic);
+        producers.add(publisher);
+        return publisher;
+    }
+
+    private MessageProducer addMessageProducer(MessageProducer producer, Destination destination) throws JMSException {
+        producer = new JmsPoolMessageProducer(this, producer, destination);
+        producers.add(producer);
+        return producer;
     }
 
     private PooledSessionHolder safeGetSessionHolder() throws JMSException {
