@@ -24,13 +24,18 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.jms.CompletionListener;
 import javax.jms.DeliveryMode;
 import javax.jms.Destination;
+import javax.jms.IllegalStateException;
+import javax.jms.IllegalStateRuntimeException;
 import javax.jms.JMSContext;
 import javax.jms.JMSException;
 import javax.jms.JMSProducer;
@@ -41,7 +46,10 @@ import javax.jms.MessageFormatRuntimeException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.messaginghub.messy.jms.mock.MockJMSConnection;
+import org.messaginghub.messy.jms.mock.MockJMSConnectionListener;
 import org.messaginghub.messy.jms.mock.MockJMSMessageProducer;
+import org.messaginghub.messy.jms.mock.MockJMSSession;
 import org.messaginghub.messy.jms.mock.MockJMSTopic;
 
 /**
@@ -893,21 +901,443 @@ public class JmsPoolJMSProducerTest extends JmsPoolTestSupport {
         assertEquals(2000, producer.getTimeToLive());
     }
 
-    //----- Internal Support -------------------------------------------------//
+    //----- Test Send Methods -----------------------------------------------//
 
-    private void sendWithBodyOfType(JMSProducer producer, Class<?> asType) {
-        if (asType.equals(String.class)) {
-            producer.send(JMS_DESTINATION, "String-body-type");
-        } else if (asType.equals(Map.class)) {
-            producer.send(JMS_DESTINATION, Collections.<String, Object>emptyMap());
-        } else if (asType.equals(Message.class)) {
-            producer.send(JMS_DESTINATION, context.createMessage());
-        } else if (asType.equals(byte[].class)) {
-            producer.send(JMS_DESTINATION, new byte[10]);
-        } else if (asType.equals(UUID.class)) {
-            producer.send(JMS_DESTINATION, UUID.randomUUID());
+    @Test
+    public void testSendNullMessageThrowsMFRE() throws JMSException {
+        JMSProducer producer = context.createProducer();
+
+        try {
+            producer.send(JMS_DESTINATION, (Message) null);
+            fail("Should throw a MessageFormatRuntimeException");
+        } catch (MessageFormatRuntimeException mfre) {
+        } catch (Exception e) {
+            fail("Should throw a MessageFormatRuntimeException");
         }
     }
+
+    @Test
+    public void testSendJMSMessage() throws JMSException {
+        JMSProducer producer = context.createProducer();
+        Message message = context.createMessage();
+
+        final AtomicBoolean messageSent = new AtomicBoolean();
+
+        MockJMSConnection connection = (MockJMSConnection) context.getConnection();
+        connection.addConnectionListener(new MockJMSConnectionListener() {
+
+            @Override
+            public void onMessageSend(MockJMSSession session, Message message) throws JMSException {
+                assertEquals(JMS_CORRELATION_ID, message.getJMSCorrelationID());
+                assertTrue(Arrays.equals(JMS_CORRELATION_ID.getBytes(), message.getJMSCorrelationIDAsBytes()));
+                assertEquals(JMS_REPLY_TO, message.getJMSReplyTo());
+                assertEquals(JMS_TYPE_STRING, message.getJMSType());
+
+                messageSent.set(true);
+            }
+        });
+
+        producer.setJMSCorrelationID(JMS_CORRELATION_ID);
+        producer.setJMSCorrelationIDAsBytes(JMS_CORRELATION_ID.getBytes());
+        producer.setJMSReplyTo(JMS_REPLY_TO);
+        producer.setJMSType(JMS_TYPE_STRING);
+
+        producer.send(JMS_DESTINATION, message);
+
+        assertTrue(messageSent.get());
+    }
+
+    @Test
+    public void testSendAppliesDeliveryModeMessageBody() throws JMSException {
+        doTestSendAppliesDeliveryModeWithMessageBody(Message.class);
+    }
+
+    @Test
+    public void testSendAppliesDeliveryModeStringMessageBody() throws JMSException {
+        doTestSendAppliesDeliveryModeWithMessageBody(String.class);
+    }
+
+    @Test
+    public void testSendAppliesDeliveryModeMapMessageBody() throws JMSException {
+        doTestSendAppliesDeliveryModeWithMessageBody(Map.class);
+    }
+
+    @Test
+    public void testSendAppliesDeliveryModeBytesMessageBody() throws JMSException {
+        doTestSendAppliesDeliveryModeWithMessageBody(byte[].class);
+    }
+
+    @Test
+    public void testSendAppliesDeliveryModeSerializableMessageBody() throws JMSException {
+        doTestSendAppliesDeliveryModeWithMessageBody(UUID.class);
+    }
+
+    public void doTestSendAppliesDeliveryModeWithMessageBody(Class<?> bodyType) throws JMSException {
+        JMSProducer producer = context.createProducer();
+
+        final AtomicBoolean nonPersistentMessage = new AtomicBoolean();
+        final AtomicBoolean persistentMessage = new AtomicBoolean();
+
+        MockJMSConnection connection = (MockJMSConnection) context.getConnection();
+        connection.addConnectionListener(new MockJMSConnectionListener() {
+
+            @Override
+            public void onMessageSend(MockJMSSession session, Message message) throws JMSException {
+                if (!persistentMessage.get()) {
+                    assertEquals(DeliveryMode.PERSISTENT, message.getJMSDeliveryMode());
+                    persistentMessage.set(true);
+                } else {
+                    assertEquals(DeliveryMode.NON_PERSISTENT, message.getJMSDeliveryMode());
+                    nonPersistentMessage.set(true);
+                }
+            }
+        });
+
+        producer.setDeliveryMode(DeliveryMode.PERSISTENT);
+        producer.send(JMS_DESTINATION, "text");
+
+        producer.setDeliveryMode(DeliveryMode.NON_PERSISTENT);
+        producer.send(JMS_DESTINATION, "text");
+
+        assertTrue(persistentMessage.get());
+        assertTrue(nonPersistentMessage.get());
+    }
+
+    @Test
+    public void testSendAppliesPrioirtyMessageBody() throws JMSException {
+        doTestSendAppliesPriorityWithMessageBody(Message.class);
+    }
+
+    @Test
+    public void testSendAppliesPriorityStringMessageBody() throws JMSException {
+        doTestSendAppliesPriorityWithMessageBody(String.class);
+    }
+
+    @Test
+    public void testSendAppliesPriorityMapMessageBody() throws JMSException {
+        doTestSendAppliesPriorityWithMessageBody(Map.class);
+    }
+
+    @Test
+    public void testSendAppliesPriorityBytesMessageBody() throws JMSException {
+        doTestSendAppliesPriorityWithMessageBody(byte[].class);
+    }
+
+    @Test
+    public void testSendAppliesPrioritySerializableMessageBody() throws JMSException {
+        doTestSendAppliesPriorityWithMessageBody(UUID.class);
+    }
+
+    private void doTestSendAppliesPriorityWithMessageBody(Class<?> bodyType) throws JMSException {
+        JMSProducer producer = context.createProducer();
+
+        final AtomicBoolean lowPriority = new AtomicBoolean();
+        final AtomicBoolean highPriority = new AtomicBoolean();
+
+        MockJMSConnection connection = (MockJMSConnection) context.getConnection();
+        connection.addConnectionListener(new MockJMSConnectionListener() {
+
+            @Override
+            public void onMessageSend(MockJMSSession session, Message message) throws JMSException {
+                if (!lowPriority.get()) {
+                    assertEquals(0, message.getJMSPriority());
+                    lowPriority.set(true);
+                } else {
+                    assertEquals(7, message.getJMSPriority());
+                    highPriority.set(true);
+                }
+            }
+        });
+
+        producer.setPriority(0);
+        producer.send(JMS_DESTINATION, "text");
+
+        producer.setPriority(7);
+        producer.send(JMS_DESTINATION, "text");
+
+        assertTrue(lowPriority.get());
+        assertTrue(highPriority.get());
+    }
+
+    @Test
+    public void testSendAppliesTimeToLiveMessageBody() throws JMSException {
+        doTestSendAppliesTimeToLiveWithMessageBody(Message.class);
+    }
+
+    @Test
+    public void testSendAppliesTimeToLiveStringMessageBody() throws JMSException {
+        doTestSendAppliesTimeToLiveWithMessageBody(String.class);
+    }
+
+    @Test
+    public void testSendAppliesTimeToLiveMapMessageBody() throws JMSException {
+        doTestSendAppliesTimeToLiveWithMessageBody(Map.class);
+    }
+
+    @Test
+    public void testSendAppliesTimeToLiveBytesMessageBody() throws JMSException {
+        doTestSendAppliesTimeToLiveWithMessageBody(byte[].class);
+    }
+
+    @Test
+    public void testSendAppliesTimeToLiveSerializableMessageBody() throws JMSException {
+        doTestSendAppliesTimeToLiveWithMessageBody(UUID.class);
+    }
+
+    private void doTestSendAppliesTimeToLiveWithMessageBody(Class<?> bodyType) throws JMSException {
+        JMSProducer producer = context.createProducer();
+
+        final AtomicBoolean nonDefaultTTL = new AtomicBoolean();
+        final AtomicBoolean defaultTTL = new AtomicBoolean();
+
+        MockJMSConnection connection = (MockJMSConnection) context.getConnection();
+        connection.addConnectionListener(new MockJMSConnectionListener() {
+
+            @Override
+            public void onMessageSend(MockJMSSession session, Message message) throws JMSException {
+                if (!nonDefaultTTL.get()) {
+                    assertTrue(message.getJMSExpiration() > 0);
+                    nonDefaultTTL.set(true);
+                } else {
+                    assertTrue(message.getJMSExpiration() == 0);
+                    defaultTTL.set(true);
+                }
+            }
+        });
+
+        producer.setTimeToLive(2000);
+        producer.send(JMS_DESTINATION, "text");
+
+        producer.setTimeToLive(Message.DEFAULT_TIME_TO_LIVE);
+        producer.send(JMS_DESTINATION, "text");
+
+        assertTrue(nonDefaultTTL.get());
+        assertTrue(defaultTTL.get());
+    }
+
+    @Test
+    public void testStringBodyIsApplied() throws JMSException {
+        JMSProducer producer = context.createProducer();
+
+        final String bodyValue = "String-Value";
+        final AtomicBoolean bodyValidated = new AtomicBoolean();
+
+        MockJMSConnection connection = (MockJMSConnection) context.getConnection();
+        connection.addConnectionListener(new MockJMSConnectionListener() {
+
+            @Override
+            public void onMessageSend(MockJMSSession session, Message message) throws JMSException {
+                assertEquals(bodyValue, message.getBody(String.class));
+                bodyValidated.set(true);
+            }
+        });
+
+        producer.send(JMS_DESTINATION, bodyValue);
+        assertTrue(bodyValidated.get());
+    }
+
+    @Test
+    public void testMapBodyIsApplied() throws JMSException {
+        JMSProducer producer = context.createProducer();
+
+        final Map<String, Object> bodyValue = new HashMap<String, Object>();
+
+        bodyValue.put("Value-1", "First");
+        bodyValue.put("Value-2", "Second");
+
+        final AtomicBoolean bodyValidated = new AtomicBoolean();
+
+        MockJMSConnection connection = (MockJMSConnection) context.getConnection();
+        connection.addConnectionListener(new MockJMSConnectionListener() {
+
+            @Override
+            public void onMessageSend(MockJMSSession session, Message message) throws JMSException {
+                assertEquals(bodyValue, message.getBody(Map.class));
+                bodyValidated.set(true);
+            }
+        });
+
+        producer.send(JMS_DESTINATION, bodyValue);
+        assertTrue(bodyValidated.get());
+    }
+
+    @Test
+    public void testBytesBodyIsApplied() throws JMSException {
+        JMSProducer producer = context.createProducer();
+
+        final byte[] bodyValue = new byte[] { 0, 1, 2, 3, 4 };
+        final AtomicBoolean bodyValidated = new AtomicBoolean();
+
+        MockJMSConnection connection = (MockJMSConnection) context.getConnection();
+        connection.addConnectionListener(new MockJMSConnectionListener() {
+
+            @Override
+            public void onMessageSend(MockJMSSession session, Message message) throws JMSException {
+                byte[] payload = message.getBody(byte[].class);
+                assertNotNull(payload);
+                assertEquals(bodyValue.length, payload.length);
+
+                for (int i = 0; i < payload.length; ++i) {
+                    assertEquals(bodyValue[i], payload[i]);
+                }
+
+                bodyValidated.set(true);
+            }
+        });
+
+        producer.send(JMS_DESTINATION, bodyValue);
+        assertTrue(bodyValidated.get());
+    }
+
+    @Test
+    public void testSerializableBodyIsApplied() throws JMSException {
+        JMSProducer producer = context.createProducer();
+
+        final UUID bodyValue = UUID.randomUUID();
+        final AtomicBoolean bodyValidated = new AtomicBoolean();
+
+        MockJMSConnection connection = (MockJMSConnection) context.getConnection();
+        connection.addConnectionListener(new MockJMSConnectionListener() {
+
+            @Override
+            public void onMessageSend(MockJMSSession session, Message message) throws JMSException {
+                assertEquals(bodyValue, message.getBody(UUID.class));
+                bodyValidated.set(true);
+            }
+        });
+
+        producer.send(JMS_DESTINATION, bodyValue);
+        assertTrue(bodyValidated.get());
+    }
+
+    //----- Test for conversions to JMSRuntimeException ----------------------//
+
+    @Test
+    public void testRuntimeExceptionFromSendMessage() throws JMSException {
+        JMSProducer producer = context.createProducer();
+
+        MockJMSConnection connection = (MockJMSConnection) context.getConnection();
+        connection.addConnectionListener(new MockJMSConnectionListener() {
+
+            @Override
+            public void onMessageSend(MockJMSSession session, Message message) throws JMSException {
+                throw new IllegalStateException("Send Failed");
+            }
+        });
+
+        try {
+            producer.send(context.createTemporaryQueue(), context.createMessage());
+            fail("Should have thrown an exception");
+        } catch (IllegalStateRuntimeException isre) {}
+    }
+
+    @Test
+    public void testRuntimeExceptionFromSendByteBody() throws JMSException {
+        JMSProducer producer = context.createProducer();
+
+        MockJMSConnection connection = (MockJMSConnection) context.getConnection();
+        connection.addConnectionListener(new MockJMSConnectionListener() {
+
+            @Override
+            public void onMessageSend(MockJMSSession session, Message message) throws JMSException {
+                throw new IllegalStateException("Send Failed");
+            }
+        });
+
+        try {
+            producer.send(context.createTemporaryQueue(), new byte[0]);
+            fail("Should have thrown an exception");
+        } catch (IllegalStateRuntimeException isre) {}
+    }
+
+    @Test
+    public void testRuntimeExceptionFromSendMapBody() throws JMSException {
+        JMSProducer producer = context.createProducer();
+
+        MockJMSConnection connection = (MockJMSConnection) context.getConnection();
+        connection.addConnectionListener(new MockJMSConnectionListener() {
+
+            @Override
+            public void onMessageSend(MockJMSSession session, Message message) throws JMSException {
+                throw new IllegalStateException("Send Failed");
+            }
+        });
+
+        try {
+            producer.send(context.createTemporaryQueue(), Collections.<String, Object>emptyMap());
+            fail("Should have thrown an exception");
+        } catch (IllegalStateRuntimeException isre) {}
+    }
+
+    @Test
+    public void testRuntimeExceptionFromSendSerializableBody() throws JMSException {
+        JMSProducer producer = context.createProducer();
+
+        MockJMSConnection connection = (MockJMSConnection) context.getConnection();
+        connection.addConnectionListener(new MockJMSConnectionListener() {
+
+            @Override
+            public void onMessageSend(MockJMSSession session, Message message) throws JMSException {
+                throw new IllegalStateException("Send Failed");
+            }
+        });
+
+        try {
+            producer.send(context.createTemporaryQueue(), UUID.randomUUID());
+            fail("Should have thrown an exception");
+        } catch (IllegalStateRuntimeException isre) {}
+    }
+
+    @Test
+    public void testRuntimeExceptionFromSendStringBody() throws JMSException {
+        JMSProducer producer = context.createProducer();
+
+        MockJMSConnection connection = (MockJMSConnection) context.getConnection();
+        connection.addConnectionListener(new MockJMSConnectionListener() {
+
+            @Override
+            public void onMessageSend(MockJMSSession session, Message message) throws JMSException {
+                throw new IllegalStateException("Send Failed");
+            }
+        });
+
+        try {
+            producer.send(context.createTemporaryQueue(), "test");
+            fail("Should have thrown an exception");
+        } catch (IllegalStateRuntimeException isre) {}
+    }
+
+    @Test
+    public void testRuntimeExceptionOnSendWithCompletion() throws JMSException {
+        JMSProducer producer = context.createProducer();
+
+        MockJMSConnection connection = (MockJMSConnection) context.getConnection();
+        connection.addConnectionListener(new MockJMSConnectionListener() {
+
+            @Override
+            public void onMessageSend(MockJMSSession session, Message message) throws JMSException {
+                throw new IllegalStateException("Send Failed");
+            }
+        });
+
+        producer.setAsync(new CompletionListener() {
+
+            @Override
+            public void onException(Message message, Exception exception) {
+            }
+
+            @Override
+            public void onCompletion(Message message) {
+            }
+        });
+
+        try {
+            producer.send(context.createTemporaryQueue(), "test");
+            fail("Should have thrown an exception");
+        } catch (IllegalStateRuntimeException isre) {}
+    }
+
+    //----- Internal Support -------------------------------------------------//
 
     private class TestJmsCompletionListener implements CompletionListener {
 

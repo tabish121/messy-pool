@@ -38,6 +38,7 @@ import javax.jms.IllegalStateException;
 import javax.jms.InvalidClientIDException;
 import javax.jms.JMSException;
 import javax.jms.JMSSecurityException;
+import javax.jms.Message;
 import javax.jms.Queue;
 import javax.jms.QueueConnection;
 import javax.jms.QueueSession;
@@ -506,6 +507,14 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
             } else {
                 listener.onDeleteTemporaryTopic((MockJMSTemporaryTopic) destination);
             }
+        }
+    }
+
+    //----- Event points for MockJMS resources -------------------------------//
+
+    void onMessageSend(MockJMSSession session, Message message) throws JMSException {
+        for (MockJMSConnectionListener listener : connectionListeners) {
+            listener.onMessageSend(session, message);
         }
     }
 }

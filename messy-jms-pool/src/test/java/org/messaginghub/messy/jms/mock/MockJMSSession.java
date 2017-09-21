@@ -23,6 +23,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReentrantLock;
 
 import javax.jms.BytesMessage;
 import javax.jms.CompletionListener;
@@ -60,6 +61,7 @@ public class MockJMSSession implements Session, QueueSession, TopicSession, Auto
 
     private final AtomicBoolean closed = new AtomicBoolean();
     private final AtomicBoolean started = new AtomicBoolean();
+    private final ReentrantLock sendLock = new ReentrantLock();
 
     private final Map<String, MockJMSMessageProducer> producers = new ConcurrentHashMap<>();
     private final Map<String, MockJMSMessageConsumer> consumers = new ConcurrentHashMap<>();
@@ -399,7 +401,66 @@ public class MockJMSSession implements Session, QueueSession, TopicSession, Auto
     //----- Session access points for producer and consumer ------------------//
 
     void send(MockJMSMessageProducer producer, Destination destination, Message message, int deliveryMode, int priority, long timeToLive, boolean disableMessageId, boolean disableTimestamp, long deliveryDelay, CompletionListener completionListener) throws JMSException {
-        // TODO Auto-generated method stub
+        sendLock.lock();
+        try {
+            message.setJMSDeliveryMode(deliveryMode);
+            message.setJMSPriority(priority);
+            message.setJMSRedelivered(false);
+            message.setJMSDestination(destination);
+
+            long timeStamp = System.currentTimeMillis();
+            boolean hasTTL = timeToLive > Message.DEFAULT_TIME_TO_LIVE;
+            boolean hasDelay = deliveryDelay > Message.DEFAULT_DELIVERY_DELAY;
+
+            if (!(message instanceof MockJMSMessage)) {
+                throw new IllegalStateException("Mock JMS client cannot handle foreign messages");
+            }
+
+            if (!disableTimestamp) {
+                message.setJMSTimestamp(timeStamp);
+            } else {
+                message.setJMSTimestamp(0);
+            }
+
+            if (hasTTL) {
+                message.setJMSExpiration(timeStamp + timeToLive);
+            } else {
+                message.setJMSExpiration(0);
+            }
+
+            long messageSequence = producer.getNextMessageSequence();
+            String messageId = null;
+            if (!disableMessageId) {
+                messageId = producer.getProducerId() + ":"+ messageSequence;
+            }
+
+            // Set the delivery time. Purposefully avoided doing this earlier so
+            // that we use the 'outbound' JmsMessage object reference when
+            // updating our own message instances, avoids using the interface
+            // in case the JMS 1.1 Message API is actually being used due to
+            // being on the classpath too.
+            long deliveryTime = timeStamp;
+            if (hasDelay) {
+                deliveryTime = timeStamp + deliveryDelay;
+            }
+
+            message.setJMSDeliveryTime(deliveryTime);
+
+            // Set the message ID
+            message.setJMSMessageID(messageId);
+
+            try {
+                connection.onMessageSend(this, message);
+            } catch (JMSException jmsEx) {
+                // If the synchronous portion of the send fails the completion be
+                // notified but might depending on the circumstances of the failures,
+                // remove it from the queue and check if is is already completed
+                // once we decide to add completion support to the mock
+                throw jmsEx;
+            }
+        } finally {
+            sendLock.unlock();
+        }
     }
 
     void acknowledge() throws JMSException {

@@ -17,6 +17,7 @@
 package org.messaginghub.messy.jms.mock;
 
 import javax.jms.JMSException;
+import javax.jms.Message;
 
 /**
  * Listen in on events in the MockJMSConnection and influence outcomes
@@ -34,5 +35,7 @@ public interface MockJMSConnectionListener {
     default void onCreateSession(MockJMSSession session) throws JMSException {}
 
     default void onCloseSession(MockJMSSession session) throws JMSException {}
+
+    default void onMessageSend(MockJMSSession session, Message message) throws JMSException {}
 
 }

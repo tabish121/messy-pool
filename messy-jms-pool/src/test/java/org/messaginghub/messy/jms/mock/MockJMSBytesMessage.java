@@ -16,10 +16,19 @@
  */
 package org.messaginghub.messy.jms.mock;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.EOFException;
+import java.io.IOException;
 import java.util.Arrays;
 
 import javax.jms.BytesMessage;
 import javax.jms.JMSException;
+import javax.jms.MessageFormatException;
+
+import org.messaginghub.messy.jms.util.JMSExceptionSupport;
 
 /**
  * Mock JMS BytesMessage implementation.
@@ -27,155 +36,355 @@ import javax.jms.JMSException;
 @SuppressWarnings("unchecked")
 public class MockJMSBytesMessage extends MockJMSMessage implements BytesMessage {
 
+    protected transient DataOutputStream dataOut;
+    protected transient ByteArrayOutputStream output;
+    protected transient DataInputStream dataIn;
+    protected transient ByteArrayInputStream input;
+
     byte[] content;
 
     @Override
     public long getBodyLength() throws JMSException {
-        // TODO Auto-generated method stub
-        return 0;
+        initializeReading();
+        return content.length;
     }
 
     @Override
     public boolean readBoolean() throws JMSException {
-        // TODO Auto-generated method stub
-        return false;
+        initializeReading();
+        try {
+            return this.dataIn.readBoolean();
+        } catch (EOFException e) {
+            throw JMSExceptionSupport.createMessageEOFException(e);
+        } catch (IOException e) {
+            throw JMSExceptionSupport.createMessageFormatException(e);
+        }
     }
 
     @Override
     public byte readByte() throws JMSException {
-        // TODO Auto-generated method stub
-        return 0;
+        initializeReading();
+        try {
+            return this.dataIn.readByte();
+        } catch (EOFException e) {
+            throw JMSExceptionSupport.createMessageEOFException(e);
+        } catch (IOException e) {
+            throw JMSExceptionSupport.create(e);
+        }
     }
 
     @Override
     public int readUnsignedByte() throws JMSException {
-        // TODO Auto-generated method stub
-        return 0;
+        initializeReading();
+        try {
+            return this.dataIn.readUnsignedByte();
+        } catch (EOFException e) {
+            throw JMSExceptionSupport.createMessageEOFException(e);
+        } catch (IOException e) {
+            throw JMSExceptionSupport.createMessageFormatException(e);
+        }
     }
 
     @Override
     public short readShort() throws JMSException {
-        // TODO Auto-generated method stub
-        return 0;
+        initializeReading();
+        try {
+            return this.dataIn.readShort();
+        } catch (EOFException e) {
+            throw JMSExceptionSupport.createMessageEOFException(e);
+        } catch (IOException e) {
+            throw JMSExceptionSupport.createMessageFormatException(e);
+        }
     }
 
     @Override
     public int readUnsignedShort() throws JMSException {
-        // TODO Auto-generated method stub
-        return 0;
+        initializeReading();
+        try {
+            return this.dataIn.readUnsignedShort();
+        } catch (EOFException e) {
+            throw JMSExceptionSupport.createMessageEOFException(e);
+        } catch (IOException e) {
+            throw JMSExceptionSupport.createMessageFormatException(e);
+        }
     }
 
     @Override
     public char readChar() throws JMSException {
-        // TODO Auto-generated method stub
-        return 0;
+        initializeReading();
+        try {
+            return this.dataIn.readChar();
+        } catch (EOFException e) {
+            throw JMSExceptionSupport.createMessageEOFException(e);
+        } catch (IOException e) {
+            throw JMSExceptionSupport.createMessageFormatException(e);
+        }
     }
 
     @Override
     public int readInt() throws JMSException {
-        // TODO Auto-generated method stub
-        return 0;
+        initializeReading();
+        try {
+            return this.dataIn.readInt();
+        } catch (EOFException e) {
+            throw JMSExceptionSupport.createMessageEOFException(e);
+        } catch (IOException e) {
+            throw JMSExceptionSupport.createMessageFormatException(e);
+        }
     }
 
     @Override
     public long readLong() throws JMSException {
-        // TODO Auto-generated method stub
-        return 0;
+        initializeReading();
+        try {
+            return this.dataIn.readLong();
+        } catch (EOFException e) {
+            throw JMSExceptionSupport.createMessageEOFException(e);
+        } catch (IOException e) {
+            throw JMSExceptionSupport.createMessageFormatException(e);
+        }
     }
 
     @Override
     public float readFloat() throws JMSException {
-        // TODO Auto-generated method stub
-        return 0;
+        initializeReading();
+        try {
+            return this.dataIn.readFloat();
+        } catch (EOFException e) {
+            throw JMSExceptionSupport.createMessageEOFException(e);
+        } catch (IOException e) {
+            throw JMSExceptionSupport.createMessageFormatException(e);
+        }
     }
 
     @Override
     public double readDouble() throws JMSException {
-        // TODO Auto-generated method stub
-        return 0;
+        initializeReading();
+        try {
+            return this.dataIn.readDouble();
+        } catch (EOFException e) {
+            throw JMSExceptionSupport.createMessageEOFException(e);
+        } catch (IOException e) {
+            throw JMSExceptionSupport.createMessageFormatException(e);
+        }
     }
 
     @Override
     public String readUTF() throws JMSException {
-        // TODO Auto-generated method stub
-        return null;
+        initializeReading();
+        try {
+            return this.dataIn.readUTF();
+        } catch (EOFException e) {
+            throw JMSExceptionSupport.createMessageEOFException(e);
+        } catch (IOException e) {
+            throw JMSExceptionSupport.createMessageFormatException(e);
+        }
     }
 
     @Override
     public int readBytes(byte[] value) throws JMSException {
-        // TODO Auto-generated method stub
-        return 0;
+        return readBytes(value, value.length);
     }
 
     @Override
     public int readBytes(byte[] value, int length) throws JMSException {
-        // TODO Auto-generated method stub
-        return 0;
+        initializeReading();
+
+        if (length < 0 || value.length < length) {
+            throw new IndexOutOfBoundsException(
+                "length must not be negative or larger than the size of the provided array");
+        }
+
+        try {
+            int n = 0;
+            while (n < length) {
+                int count = this.dataIn.read(value, n, length - n);
+                if (count < 0) {
+                    break;
+                }
+                n += count;
+            }
+            if (n == 0 && length > 0) {
+                n = -1;
+            }
+            return n;
+        } catch (EOFException e) {
+            throw JMSExceptionSupport.createMessageEOFException(e);
+        } catch (IOException e) {
+            throw JMSExceptionSupport.createMessageFormatException(e);
+        }
     }
 
     @Override
     public void writeBoolean(boolean value) throws JMSException {
-        // TODO Auto-generated method stub
+        initializeWriting();
+        try {
+            this.dataOut.writeBoolean(value);
+        } catch (IOException e) {
+            throw JMSExceptionSupport.createMessageFormatException(e);
+        }
     }
 
     @Override
     public void writeByte(byte value) throws JMSException {
-        // TODO Auto-generated method stub
+        initializeWriting();
+        try {
+            this.dataOut.writeByte(value);
+        } catch (IOException e) {
+            throw JMSExceptionSupport.createMessageFormatException(e);
+        }
     }
 
     @Override
     public void writeShort(short value) throws JMSException {
-        // TODO Auto-generated method stub
+        initializeWriting();
+        try {
+            this.dataOut.writeShort(value);
+        } catch (IOException e) {
+            throw JMSExceptionSupport.createMessageFormatException(e);
+        }
     }
 
     @Override
     public void writeChar(char value) throws JMSException {
-        // TODO Auto-generated method stub
+        initializeWriting();
+        try {
+            this.dataOut.writeChar(value);
+        } catch (IOException e) {
+            throw JMSExceptionSupport.createMessageFormatException(e);
+        }
     }
 
     @Override
     public void writeInt(int value) throws JMSException {
-        // TODO Auto-generated method stub
+        initializeWriting();
+        try {
+            this.dataOut.writeInt(value);
+        } catch (IOException e) {
+            throw JMSExceptionSupport.createMessageFormatException(e);
+        }
     }
 
     @Override
     public void writeLong(long value) throws JMSException {
-        // TODO Auto-generated method stub
+        initializeWriting();
+        try {
+            this.dataOut.writeLong(value);
+        } catch (IOException e) {
+            throw JMSExceptionSupport.createMessageFormatException(e);
+        }
     }
 
     @Override
     public void writeFloat(float value) throws JMSException {
-        // TODO Auto-generated method stub
+        initializeWriting();
+        try {
+            this.dataOut.writeFloat(value);
+        } catch (IOException e) {
+            throw JMSExceptionSupport.createMessageFormatException(e);
+        }
     }
 
     @Override
     public void writeDouble(double value) throws JMSException {
-        // TODO Auto-generated method stub
+        initializeWriting();
+        try {
+            this.dataOut.writeDouble(value);
+        } catch (IOException e) {
+            throw JMSExceptionSupport.createMessageFormatException(e);
+        }
     }
 
     @Override
     public void writeUTF(String value) throws JMSException {
-        // TODO Auto-generated method stub
+        initializeWriting();
+        try {
+            this.dataOut.writeUTF(value);
+        } catch (IOException ioe) {
+            throw JMSExceptionSupport.create(ioe);
+        }
     }
 
     @Override
     public void writeBytes(byte[] value) throws JMSException {
-        // TODO Auto-generated method stub
+        initializeWriting();
+        try {
+            this.dataOut.write(value);
+        } catch (IOException e) {
+            throw JMSExceptionSupport.createMessageFormatException(e);
+        }
     }
 
     @Override
     public void writeBytes(byte[] value, int offset, int length) throws JMSException {
-        // TODO Auto-generated method stub
+        initializeWriting();
+        try {
+            this.dataOut.write(value, offset, length);
+        } catch (IOException e) {
+            throw JMSExceptionSupport.createMessageFormatException(e);
+        }
     }
 
     @Override
     public void writeObject(Object value) throws JMSException {
-        // TODO Auto-generated method stub
+        if (value == null) {
+            throw new NullPointerException();
+        }
+        initializeWriting();
+        if (value instanceof Boolean) {
+            writeBoolean(((Boolean) value).booleanValue());
+        } else if (value instanceof Character) {
+            writeChar(((Character) value).charValue());
+        } else if (value instanceof Byte) {
+            writeByte(((Byte) value).byteValue());
+        } else if (value instanceof Short) {
+            writeShort(((Short) value).shortValue());
+        } else if (value instanceof Integer) {
+            writeInt(((Integer) value).intValue());
+        } else if (value instanceof Long) {
+            writeLong(((Long) value).longValue());
+        } else if (value instanceof Float) {
+            writeFloat(((Float) value).floatValue());
+        } else if (value instanceof Double) {
+            writeDouble(((Double) value).doubleValue());
+        } else if (value instanceof String) {
+            writeUTF(value.toString());
+        } else if (value instanceof byte[]) {
+            writeBytes((byte[]) value);
+        } else {
+            throw new MessageFormatException("Cannot write non-primitive type:" + value.getClass());
+        }
+    }
+
+    @Override
+    public void clearBody() throws JMSException {
+        super.clearBody();
+        this.dataOut = null;
+        this.dataIn = null;
     }
 
     @Override
     public void reset() throws JMSException {
-        // TODO Auto-generated method stub
+        if (dataOut != null) {
+            content = output.toByteArray();
+            try {
+                dataOut.close();
+            } catch (Exception e) {
+            } finally {
+                output = null;
+                dataOut = null;
+            }
+        }
+        if (dataIn != null) {
+            try {
+                dataIn.close();
+            } catch (Exception e) {
+            } finally {
+                input = null;
+                dataIn = null;
+            }
+        }
+        setReadOnlyBody(true);
     }
 
     @Override
@@ -187,10 +396,27 @@ public class MockJMSBytesMessage extends MockJMSMessage implements BytesMessage 
     protected <T> T doGetBody(Class<T> asType) throws JMSException {
         reset();
 
-        if (content == null) {
+        if (content == null || content.length == 0) {
             return null;
         }
 
         return (T) Arrays.copyOf(content, content.length);
+    }
+
+    private void initializeWriting() throws JMSException {
+        checkReadOnlyBody();
+        if (this.dataOut == null) {
+            this.content = null;
+            this.output = new ByteArrayOutputStream();
+            this.dataOut = new DataOutputStream(output);
+        }
+    }
+
+    private void initializeReading() throws JMSException {
+        checkWriteOnlyBody();
+        if (dataIn == null) {
+            input = new ByteArrayInputStream(content);
+            dataIn = new DataInputStream(new ByteArrayInputStream(content));
+        }
     }
 }

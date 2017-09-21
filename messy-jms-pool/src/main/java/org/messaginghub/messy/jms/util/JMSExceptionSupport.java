@@ -28,6 +28,7 @@ import javax.jms.JMSException;
 import javax.jms.JMSRuntimeException;
 import javax.jms.JMSSecurityException;
 import javax.jms.JMSSecurityRuntimeException;
+import javax.jms.MessageEOFException;
 import javax.jms.MessageFormatException;
 import javax.jms.MessageFormatRuntimeException;
 import javax.jms.MessageNotWriteableException;
@@ -103,6 +104,62 @@ public final class JMSExceptionSupport {
      */
     public static JMSException create(Throwable cause) {
         return create(null, cause);
+    }
+
+    /**
+     * Creates or passes through a MessageEOFException to be thrown to the client.
+     *
+     * In the event that the exception passed to this method is already a
+     * MessageEOFException it is passed through unmodified, otherwise a new
+     * MessageEOFException is created using the error message taken from the
+     * given Throwable value and the cause value is set to the given Throwable
+     * instance.
+     *
+     * @param cause
+     *        The exception that caused this error state.
+     *
+     * @return a MessageEOFException instance.
+     */
+    public static MessageEOFException createMessageEOFException(Throwable cause) {
+        String message = cause.getMessage();
+        if (message == null || message.length() == 0) {
+            message = cause.toString();
+        }
+
+        MessageEOFException exception = new MessageEOFException(message);
+        if (cause instanceof Exception) {
+            exception.setLinkedException((Exception) cause);
+        }
+        exception.initCause(cause);
+        return exception;
+    }
+
+    /**
+     * Creates or passes through a MessageFormatException to be thrown to the client.
+     *
+     * In the event that the exception passed to this method is already a
+     * MessageFormatException it is passed through unmodified, otherwise a new
+     * MessageFormatException is created using the error message taken from the
+     * given Throwable value and the cause value is set to the given Throwable
+     * instance.
+     *
+     * @param cause
+     *        The exception that caused this error state.
+     *
+     * @return a MessageEOFException instance.
+     */
+    public static MessageFormatException createMessageFormatException(Throwable cause) {
+        String message = cause.getMessage();
+        if (message == null || message.length() == 0) {
+            message = cause.toString();
+        }
+
+        MessageFormatException exception = new MessageFormatException(message);
+        if (cause instanceof Exception) {
+            exception.setLinkedException((Exception) cause);
+        }
+        exception.initCause(cause);
+        return exception;
     }
 
     /**

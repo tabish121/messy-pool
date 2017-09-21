@@ -17,6 +17,7 @@
 package org.messaginghub.messy.jms.mock;
 
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 import javax.jms.CompletionListener;
 import javax.jms.DeliveryMode;
@@ -34,8 +35,9 @@ public class MockJMSMessageProducer implements MessageProducer, AutoCloseable {
     protected final MockJMSSession session;
     protected final String producerId;
     protected final MockJMSDestination destination;
-
+    protected final AtomicLong messageSequence = new AtomicLong();
     protected final boolean anonymousProducer;
+
     protected long deliveryDelay = Message.DEFAULT_DELIVERY_DELAY;
     protected int deliveryMode = DeliveryMode.PERSISTENT;
     protected int priority = Message.DEFAULT_PRIORITY;
@@ -173,6 +175,8 @@ public class MockJMSMessageProducer implements MessageProducer, AutoCloseable {
         if (anonymousProducer) {
             throw new UnsupportedOperationException("Using this method is not supported on producers created without an explicit Destination");
         }
+
+        session.send(this, destination, message, deliveryMode, priority, timeToLive, disableMessageId, disableTimestamp, deliveryMode, null);
     }
 
     @Override
@@ -188,6 +192,8 @@ public class MockJMSMessageProducer implements MessageProducer, AutoCloseable {
         if (!anonymousProducer) {
             throw new UnsupportedOperationException("Using this method is not supported on producers created with an explicit Destination.");
         }
+
+        session.send(this, destination, message, deliveryMode, priority, timeToLive, disableMessageId, disableTimestamp, deliveryMode, null);
     }
 
     @Override
@@ -206,6 +212,8 @@ public class MockJMSMessageProducer implements MessageProducer, AutoCloseable {
         if (completionListener == null) {
             throw new IllegalArgumentException("CompletetionListener cannot be null");
         }
+
+        session.send(this, destination, message, deliveryMode, priority, timeToLive, disableMessageId, disableTimestamp, deliveryDelay, completionListener);
     }
 
     @Override
@@ -228,6 +236,13 @@ public class MockJMSMessageProducer implements MessageProducer, AutoCloseable {
     }
 
     //----- Internal Support Methods -----------------------------------------//
+
+    /**
+     * @return the next logical sequence for a Message sent from this Producer.
+     */
+    protected long getNextMessageSequence() {
+        return messageSequence.incrementAndGet();
+    }
 
     protected void checkClosed() throws IllegalStateException {
         if (closed.get()) {

@@ -27,6 +27,8 @@ import javax.jms.Destination;
 import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.MessageFormatException;
+import javax.jms.MessageNotReadableException;
+import javax.jms.MessageNotWriteableException;
 
 /**
  * Mock JMS Message Implementation
@@ -50,6 +52,10 @@ public class MockJMSMessage implements Message {
     protected MockJMSDestination destination;
     protected MockJMSDestination replyTo;
     protected String userId;
+
+    protected boolean readOnly;
+    protected boolean readOnlyBody;
+    protected boolean readOnlyProperties;
 
     @Override
     public String getJMSMessageID() throws JMSException {
@@ -335,7 +341,55 @@ public class MockJMSMessage implements Message {
         throw new MessageFormatException("Message body cannot be read as type: " + asType);
     }
 
+    public boolean isReadOnly() {
+        return this.readOnly;
+    }
+
+    public void setReadOnly(boolean readOnly) {
+        this.readOnly = readOnly;
+    }
+
+    public boolean isReadOnlyBody() {
+        return this.readOnlyBody;
+    }
+
+    public void setReadOnlyBody(boolean readOnlyBody) {
+        this.readOnlyBody = readOnlyBody;
+    }
+
+    public boolean isReadOnlyProperties() {
+        return this.readOnlyProperties;
+    }
+
+    public void setReadOnlyProperties(boolean readOnlyProperties) {
+        this.readOnlyProperties = readOnlyProperties;
+    }
+
     protected <T> T doGetBody(Class<T> asType) throws JMSException {
         return null;
+    }
+
+    protected void checkReadOnly() throws MessageNotWriteableException {
+        if (readOnly) {
+            throw new MessageNotWriteableException("Message is currently read-only");
+        }
+    }
+
+    protected void checkReadOnlyProperties() throws MessageNotWriteableException {
+        if (readOnly || readOnlyProperties) {
+            throw new MessageNotWriteableException("Message properties are read-only");
+        }
+    }
+
+    protected void checkReadOnlyBody() throws MessageNotWriteableException {
+        if (readOnly || readOnlyBody) {
+            throw new MessageNotWriteableException("Message body is read-only");
+        }
+    }
+
+    protected void checkWriteOnlyBody() throws MessageNotReadableException {
+        if (!readOnlyBody) {
+            throw new MessageNotReadableException("Message body is write-only");
+        }
     }
 }
