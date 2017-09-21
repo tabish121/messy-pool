@@ -316,6 +316,10 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
         connectionListeners.remove(listener);
     }
 
+    public boolean isClosed() {
+        return closed.get();
+    }
+
     //----- Mock Connection behavioral control -------------------------------//
 
     public void injectConnectionFailure(Exception error) throws JMSException {
@@ -454,12 +458,13 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
         }
     }
 
-    void addSession(MockJMSSession mockJMSSession) {
-        sessions.put(mockJMSSession.getSessionId(), mockJMSSession);
+    void addSession(MockJMSSession session) {
+        sessions.put(session.getSessionId(), session);
     }
 
-    void removeSession(MockJMSSession mockJMSSession) {
-        sessions.remove(mockJMSSession.getSessionId());
+    void removeSession(MockJMSSession session) throws JMSException {
+        sessions.remove(session.getSessionId());
+        signalCloseSession(session);
     }
 
     void deleteTemporaryDestination(MockJMSTemporaryDestination destination) throws JMSException {
@@ -484,9 +489,21 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
         return !tempDestinations.containsKey(destination);
     }
 
-    private void signalCreateSession(MockJMSSession result) throws JMSException {
+    private void signalCreateSession(MockJMSSession session) throws JMSException {
         for (MockJMSConnectionListener listener : connectionListeners) {
-            listener.onCreateSession(result);
+            listener.onCreateSession(session);
+        }
+    }
+
+    private void signalCloseSession(MockJMSSession session) throws JMSException {
+        for (MockJMSConnectionListener listener : connectionListeners) {
+            listener.onCloseSession(session);
+        }
+    }
+
+    private void signalMessageSend(MockJMSSession session, Message message) throws JMSException {
+        for (MockJMSConnectionListener listener : connectionListeners) {
+            listener.onMessageSend(session, message);
         }
     }
 
@@ -513,8 +530,6 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
     //----- Event points for MockJMS resources -------------------------------//
 
     void onMessageSend(MockJMSSession session, Message message) throws JMSException {
-        for (MockJMSConnectionListener listener : connectionListeners) {
-            listener.onMessageSend(session, message);
-        }
+        signalMessageSend(session, message);
     }
 }

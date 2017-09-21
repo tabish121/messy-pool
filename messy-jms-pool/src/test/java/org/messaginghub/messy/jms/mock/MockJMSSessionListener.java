@@ -27,4 +27,6 @@ public interface MockJMSSessionListener {
 
     default void onSessionRollback(MockJMSSession session) throws JMSException {}
 
+    default void onSessionClosed(MockJMSSession session) throws JMSException {}
+
 }

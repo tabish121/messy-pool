@@ -87,6 +87,18 @@ public class MockJMSSession implements Session, QueueSession, TopicSession, Auto
     public void close() throws JMSException {
         if (closed.compareAndSet(false, true)) {
             connection.removeSession(this);
+
+            for (MockJMSMessageProducer producer : producers.values()) {
+                producer.close();
+            }
+
+            for (MockJMSMessageConsumer consumer : consumers.values()) {
+                consumer.close();
+            }
+
+            for (MockJMSSessionListener listener : sessionListeners) {
+                listener.onSessionClosed(this);
+            }
         }
     }
 
