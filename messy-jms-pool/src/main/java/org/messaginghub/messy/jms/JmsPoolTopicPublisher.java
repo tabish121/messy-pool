@@ -38,22 +38,22 @@ public class JmsPoolTopicPublisher extends JmsPoolMessageProducer implements Top
 
     @Override
     public void publish(Message message) throws JMSException {
-        getTopicPublisher().publish((Topic) getDestination(), message);
+        super.send(message);
     }
 
     @Override
-    public void publish(Message message, int i, int i1, long l) throws JMSException {
-        getTopicPublisher().publish((Topic) getDestination(), message, i, i1, l);
+    public void publish(Message message, int deliveryMode, int priority, long timeToLive) throws JMSException {
+        super.send(message, deliveryMode, priority, timeToLive);
     }
 
     @Override
     public void publish(Topic topic, Message message) throws JMSException {
-        getTopicPublisher().publish(topic, message);
+        super.send(topic, message);
     }
 
     @Override
-    public void publish(Topic topic, Message message, int i, int i1, long l) throws JMSException {
-        getTopicPublisher().publish(topic, message, i, i1, l);
+    public void publish(Topic topic, Message message, int deliveryMode, int priority, long timeToLive) throws JMSException {
+        super.send(topic, message, deliveryMode, priority, timeToLive);
     }
 
     @Override
