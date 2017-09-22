@@ -57,31 +57,37 @@ public class JmsPoolMessageConsumer implements MessageConsumer, AutoCloseable {
 
     @Override
     public MessageListener getMessageListener() throws JMSException {
+        checkClosed();
         return messageConsumer.getMessageListener();
     }
 
     @Override
     public String getMessageSelector() throws JMSException {
+        checkClosed();
         return messageConsumer.getMessageSelector();
     }
 
     @Override
     public Message receive() throws JMSException {
+        checkClosed();
         return messageConsumer.receive();
     }
 
     @Override
     public Message receive(long timeout) throws JMSException {
+        checkClosed();
         return messageConsumer.receive(timeout);
     }
 
     @Override
     public Message receiveNoWait() throws JMSException {
+        checkClosed();
         return messageConsumer.receiveNoWait();
     }
 
     @Override
     public void setMessageListener(MessageListener listener) throws JMSException {
+        checkClosed();
         messageConsumer.setMessageListener(listener);
     }
 

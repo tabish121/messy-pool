@@ -17,7 +17,9 @@
 package org.messaginghub.messy.jms;
 
 import java.util.Enumeration;
+import java.util.concurrent.atomic.AtomicBoolean;
 
+import javax.jms.IllegalStateException;
 import javax.jms.JMSException;
 import javax.jms.Queue;
 import javax.jms.QueueBrowser;
@@ -26,6 +28,8 @@ import javax.jms.QueueBrowser;
  * A {@link QueueBrowser} which was created by {@link JmsPoolSession}.
  */
 public class JmsPoolQueueBrowser implements QueueBrowser, AutoCloseable {
+
+    private final AtomicBoolean closed = new AtomicBoolean();
 
     private final JmsPoolSession session;
     private final QueueBrowser delegate;
@@ -45,24 +49,29 @@ public class JmsPoolQueueBrowser implements QueueBrowser, AutoCloseable {
 
     @Override
     public Queue getQueue() throws JMSException {
+        checkClosed();
         return delegate.getQueue();
     }
 
     @Override
     public String getMessageSelector() throws JMSException {
+        checkClosed();
         return delegate.getMessageSelector();
     }
 
     @Override
     public Enumeration<?> getEnumeration() throws JMSException {
+        checkClosed();
         return delegate.getEnumeration();
     }
 
     @Override
     public void close() throws JMSException {
-        // ensure session removes browser from it's list of managed resources.
-        session.onQueueBrowserClose(delegate);
-        delegate.close();
+        if (closed.compareAndSet(false, true)) {
+            // ensure session removes browser from it's list of managed resources.
+            session.onQueueBrowserClose(delegate);
+            delegate.close();
+        }
     }
 
     @Override
@@ -70,7 +79,14 @@ public class JmsPoolQueueBrowser implements QueueBrowser, AutoCloseable {
         return getClass().getSimpleName() + " { " + delegate + " }";
     }
 
-    protected QueueBrowser getDelegate() {
+    public QueueBrowser getQueueBrowser() throws JMSException {
+        checkClosed();
         return delegate;
+    }
+
+    private void checkClosed() throws IllegalStateException {
+        if (closed.get()) {
+            throw new IllegalStateException("The QueueBrowser is closed");
+        }
     }
 }

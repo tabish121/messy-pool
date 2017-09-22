@@ -16,6 +16,7 @@
  */
 package org.messaginghub.messy.jms.mock;
 
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -56,7 +57,7 @@ public class MockJMSQueueBrowser implements QueueBrowser, AutoCloseable, Enumera
     @Override
     public Enumeration<?> getEnumeration() throws JMSException {
         checkClosed();
-        return null;
+        return Collections.emptyEnumeration();
     }
 
     @Override
