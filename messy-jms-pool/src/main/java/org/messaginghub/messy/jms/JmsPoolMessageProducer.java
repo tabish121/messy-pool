@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.jms.CompletionListener;
 import javax.jms.Destination;
+import javax.jms.IllegalStateException;
 import javax.jms.InvalidDestinationException;
 import javax.jms.JMSException;
 import javax.jms.Message;
@@ -262,9 +263,9 @@ public class JmsPoolMessageProducer implements MessageProducer, AutoCloseable {
         return anonymous;
     }
 
-    protected void checkClosed() throws JMSException {
+    protected void checkClosed() throws IllegalStateException {
         if (closed.get()) {
-            throw new JMSException("This message producer has been closed.");
+            throw new IllegalStateException("This message producer has been closed.");
         }
     }
 }
