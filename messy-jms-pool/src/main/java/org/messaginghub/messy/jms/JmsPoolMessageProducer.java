@@ -36,6 +36,7 @@ public class JmsPoolMessageProducer implements MessageProducer, AutoCloseable {
     private final Destination destination;
 
     private final boolean shared;
+    private final boolean anonymousProducer;
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
     private int deliveryMode;
@@ -50,6 +51,7 @@ public class JmsPoolMessageProducer implements MessageProducer, AutoCloseable {
         this.messageProducer = messageProducer;
         this.destination = destination;
         this.shared = shared;
+        this.anonymousProducer = destination == null;
 
         this.deliveryMode = messageProducer.getDeliveryMode();
         this.disableMessageID = messageProducer.getDisableMessageID();
@@ -72,83 +74,91 @@ public class JmsPoolMessageProducer implements MessageProducer, AutoCloseable {
         }
     }
 
+    //----- JMS 1.0 Send Methods ---------------------------------------------//
+
+    @Override
+    public void send(Message message) throws JMSException {
+        send(message, deliveryMode, priority, timeToLive);
+    }
+
+    @Override
+    public void send(Message message, int deliveryMode, int priority, long timeToLive) throws JMSException {
+        checkClosed();
+
+        if (anonymousProducer) {
+            throw new UnsupportedOperationException("Using this method is not supported on producers created without an explicit Destination");
+        }
+
+        sendMessage(destination, message, deliveryMode, priority, timeToLive, null);
+    }
+
     @Override
     public void send(Destination destination, Message message) throws JMSException {
         send(destination, message, getDeliveryMode(), getPriority(), getTimeToLive());
     }
 
     @Override
-    public void send(Message message) throws JMSException {
-        send(destination, message, getDeliveryMode(), getPriority(), getTimeToLive());
-    }
-
-    @Override
-    public void send(Message message, int deliveryMode, int priority, long timeToLive) throws JMSException {
-        send(destination, message, deliveryMode, priority, timeToLive);
-    }
-
-    @Override
     public void send(Destination destination, Message message, int deliveryMode, int priority, long timeToLive) throws JMSException {
         checkClosed();
+        checkDestinationNotInvalid(destination);
 
-        if (destination == null) {
-            if (this.destination == null) {
-                throw new UnsupportedOperationException("A destination must be specified.");
-            }
-            throw new InvalidDestinationException("Don't understand null destinations");
+        if (!anonymousProducer) {
+            throw new UnsupportedOperationException("Using this method is not supported on producers created with an explicit Destination.");
         }
 
-        MessageProducer messageProducer = getMessageProducer();
-
-        // just in case let only one thread send at once
-        synchronized (messageProducer) {
-
-            if (this.destination != null && !this.destination.equals(destination)) {
-                throw new UnsupportedOperationException("This producer can only send messages to: " + this.destination);
-            }
-
-            // Producer will do it's own Destination validation so always use the destination
-            // based send method otherwise we might violate a JMS rule.
-            messageProducer.send(destination, message, deliveryMode, priority, timeToLive);
-        }
+        sendMessage(destination, message, deliveryMode, priority, timeToLive, null);
     }
 
     //----- JMS 2.0 Send methods ---------------------------------------------//
 
     @Override
-    public void send(Message message, CompletionListener completionListener) throws JMSException {
-        send(destination, message, getDeliveryMode(), getPriority(), getTimeToLive(), completionListener);
+    public void send(Message message, CompletionListener listener) throws JMSException {
+        send(message, deliveryMode, priority, timeToLive, listener);
     }
 
     @Override
-    public void send(Destination destination, Message message, CompletionListener completionListener) throws JMSException {
-        send(destination, message, getDeliveryMode(), getPriority(), getTimeToLive(), completionListener);
-    }
-
-    @Override
-    public void send(Message message, int deliveryMode, int priority, long timeToLive, CompletionListener completionListener) throws JMSException {
-        send(destination, message, deliveryMode, priority, timeToLive, completionListener);
-    }
-
-    @Override
-    public void send(Destination destination, Message message, int deliveryMode, int priority, long timeToLive, CompletionListener completionListener) throws JMSException {
+    public void send(Message message, int deliveryMode, int priority, long timeToLive, CompletionListener listener) throws JMSException {
         checkClosed();
 
-        if (destination == null) {
-            if (this.destination == null) {
-                throw new UnsupportedOperationException("A destination must be specified.");
-            }
-            throw new InvalidDestinationException("Don't understand null destinations");
+        if (anonymousProducer) {
+            throw new UnsupportedOperationException("Using this method is not supported on producers created without an explicit Destination");
         }
 
+        if (listener == null) {
+            throw new IllegalArgumentException("JmsCompletetionListener cannot be null");
+        }
+
+        sendMessage(destination, message, deliveryMode, priority, timeToLive, listener);
+    }
+
+    @Override
+    public void send(Destination destination, Message message, CompletionListener listener) throws JMSException {
+        send(destination, message, this.deliveryMode, this.priority, this.timeToLive, listener);
+    }
+
+    @Override
+    public void send(Destination destination, Message message, int deliveryMode, int priority, long timeToLive, CompletionListener listener) throws JMSException {
+        checkClosed();
+
+        checkDestinationNotInvalid(destination);
+
+        if (!anonymousProducer) {
+            throw new UnsupportedOperationException("Using this method is not supported on producers created with an explicit Destination.");
+        }
+
+        if (listener == null) {
+            throw new IllegalArgumentException("JmsCompletetionListener cannot be null");
+        }
+
+        sendMessage(destination, message, deliveryMode, priority, timeToLive, listener);
+    }
+
+    private void sendMessage(Destination destination, Message message, int deliveryMode, int priority, long timeToLive, CompletionListener listener) throws JMSException {
         MessageProducer messageProducer = getMessageProducer();
 
-        // just in case let only one thread send at once
+        // Only one thread can use the producer at a time to allow for dynamic configuration
+        // changes to match what's been configured here.
         synchronized (messageProducer) {
-
-            if (this.destination != null && !this.destination.equals(destination)) {
-                throw new UnsupportedOperationException("This producer can only send messages to: " + this.destination);
-            }
 
             long oldDelayValue = 0;
             if (deliveryDelay != 0 && session.isJMSVersionSupported(2, 0)) {
@@ -156,10 +166,26 @@ public class JmsPoolMessageProducer implements MessageProducer, AutoCloseable {
                 messageProducer.setDeliveryDelay(deliveryDelay);
             }
 
-            // Producer will do it's own Destination validation so always use the destination
-            // based send method otherwise we might violate a JMS rule.
+            // For the non-shared MessageProducer that is also not an anonymous producer we
+            // need to call the send method for an explicit MessageProducer otherwise we
+            // would be violating the JMS specification in regards to send calls.
+            //
+            // In all other cases we create an anonymous producer so we call the send with
+            // destination parameter version.
             try {
-                messageProducer.send(destination, message, deliveryMode, priority, timeToLive);
+                if (!shared && !anonymousProducer) {
+                    if (listener == null) {
+                        messageProducer.send(message, deliveryMode, priority, timeToLive);
+                    } else {
+                        messageProducer.send(message, deliveryMode, priority, timeToLive, listener);
+                    }
+                } else {
+                    if (listener == null) {
+                        messageProducer.send(destination, message, deliveryMode, priority, timeToLive);
+                    } else {
+                        messageProducer.send(destination, message, deliveryMode, priority, timeToLive, listener);
+                    }
+                }
             } finally {
                 if (deliveryDelay != 0 && session.isJMSVersionSupported(2, 0)) {
                     messageProducer.setDeliveryDelay(oldDelayValue);
@@ -167,7 +193,6 @@ public class JmsPoolMessageProducer implements MessageProducer, AutoCloseable {
             }
         }
     }
-
     //----- MessageProducer configuration ------------------------------------//
 
     @Override
@@ -271,6 +296,12 @@ public class JmsPoolMessageProducer implements MessageProducer, AutoCloseable {
     protected void checkClosed() throws IllegalStateException {
         if (closed.get()) {
             throw new IllegalStateException("This message producer has been closed.");
+        }
+    }
+
+    private void checkDestinationNotInvalid(Destination destination) throws InvalidDestinationException {
+        if (destination == null) {
+            throw new InvalidDestinationException("Destination must not be null");
         }
     }
 }

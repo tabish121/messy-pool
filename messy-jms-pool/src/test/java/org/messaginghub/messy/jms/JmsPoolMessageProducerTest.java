@@ -24,20 +24,26 @@ import static org.junit.Assert.fail;
 
 import javax.jms.CompletionListener;
 import javax.jms.DeliveryMode;
+import javax.jms.Destination;
 import javax.jms.IllegalStateException;
 import javax.jms.InvalidDestinationException;
 import javax.jms.JMSException;
+import javax.jms.Message;
 import javax.jms.MessageProducer;
 import javax.jms.Queue;
 import javax.jms.Session;
 
-import org.apache.activemq.Message;
 import org.junit.Test;
+import org.messaginghub.messy.jms.mock.MockJMSDestination;
+import org.messaginghub.messy.jms.mock.MockJMSQueue;
+import org.messaginghub.messy.jms.mock.MockJMSTopic;
 
 /**
  * Tests for the JMS Pool MessageProducer wrapper class.
  */
 public class JmsPoolMessageProducerTest extends JmsPoolTestSupport {
+
+    private final TestCompletionListener completionListener = new TestCompletionListener();
 
     @Test
     public void testToString() throws JMSException {
@@ -214,7 +220,7 @@ public class JmsPoolMessageProducerTest extends JmsPoolTestSupport {
         try {
             producer.send(null, session.createMessage());
             fail("Should not be able to send with null destination");
-        } catch (UnsupportedOperationException uoe) {}
+        } catch (InvalidDestinationException ide) {}
     }
 
     @Test
@@ -248,7 +254,7 @@ public class JmsPoolMessageProducerTest extends JmsPoolTestSupport {
         try {
             producer.send(null, session.createMessage(), listener);
             fail("Should not be able to send with null destination");
-        } catch (UnsupportedOperationException uoe) {}
+        } catch (InvalidDestinationException ide) {}
     }
 
     @Test
@@ -271,5 +277,225 @@ public class JmsPoolMessageProducerTest extends JmsPoolTestSupport {
             producer.send(null, session.createMessage(), listener);
             fail("Should not be able to send with null destination");
         } catch (InvalidDestinationException ide) {}
+    }
+
+    @Test(timeout = 10000)
+    public void testAnonymousProducerThrowsUOEWhenExplictDestinationNotProvided() throws Exception {
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createQueueConnection();
+        Session session = connection.createSession();
+        MessageProducer producer = session.createProducer(null);
+
+        Message message = session.createMessage();
+        try {
+            producer.send(message);
+            fail("Expected exception not thrown");
+        } catch (UnsupportedOperationException uoe) {
+            // expected
+        }
+
+        try {
+            producer.send(message, completionListener);
+            fail("Expected exception not thrown");
+        } catch (UnsupportedOperationException uoe) {
+            // expected
+        }
+
+        try {
+            producer.send(message, Message.DEFAULT_DELIVERY_MODE, Message.DEFAULT_PRIORITY, Message.DEFAULT_TIME_TO_LIVE);
+            fail("Expected exception not thrown");
+        } catch (UnsupportedOperationException uoe) {
+            // expected
+        }
+
+        try {
+            producer.send(message, Message.DEFAULT_DELIVERY_MODE, Message.DEFAULT_PRIORITY, Message.DEFAULT_TIME_TO_LIVE, completionListener);
+            fail("Expected exception not thrown");
+        } catch (UnsupportedOperationException uoe) {
+            // expected
+        }
+    }
+
+    @Test(timeout = 10000)
+    public void testExplicitQueueProducerThrowsIDEWhenNullDestinationIsProvidedOnSend() throws Exception {
+        doExplicitProducerThrowsIDEWhenNullDestinationIsProvidedOnSendTestImpl(new MockJMSQueue("explicitQueueDest"));
+    }
+
+    @Test(timeout = 10000)
+    public void testExplicitTopicProducerThrowsIDEWhenInvalidDestinationIsProvidedOnSend() throws Exception {
+        doExplicitProducerThrowsIDEWhenNullDestinationIsProvidedOnSendTestImpl(new MockJMSTopic("explicitTopicDest"));
+    }
+
+    private void doExplicitProducerThrowsIDEWhenNullDestinationIsProvidedOnSendTestImpl(MockJMSDestination explicitDest) throws JMSException {
+        Destination invalildNullDest = null;
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createQueueConnection();
+        Session session = connection.createSession();
+        MessageProducer producer = session.createProducer(explicitDest);
+
+        Message message = session.createMessage();
+
+        try {
+            producer.send(invalildNullDest, message);
+            fail("Expected exception to be thrown");
+        } catch (InvalidDestinationException ide) {
+            // expected
+        }
+
+        try {
+            producer.send(invalildNullDest, message, completionListener);
+            fail("Expected exception to be thrown");
+        } catch (InvalidDestinationException ide) {
+            // expected
+        }
+
+        try {
+            producer.send(invalildNullDest, message, Message.DEFAULT_DELIVERY_MODE, Message.DEFAULT_PRIORITY, Message.DEFAULT_TIME_TO_LIVE);
+            fail("Expected exception to be thrown");
+        } catch (InvalidDestinationException ide) {
+            // expected
+        }
+
+        try {
+            producer.send(invalildNullDest, message, Message.DEFAULT_DELIVERY_MODE, Message.DEFAULT_PRIORITY, Message.DEFAULT_TIME_TO_LIVE, completionListener);
+            fail("Expected exception to be thrown");
+        } catch (InvalidDestinationException ide) {
+            // expected
+        }
+    }
+
+    @Test(timeout = 10000)
+    public void testExplicitProducerThrowsUOEWhenExplictDestinationIsProvided() throws Exception {
+        Destination dest = new MockJMSQueue("explicitDestination");
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createQueueConnection();
+        Session session = connection.createSession();
+        MessageProducer producer = session.createProducer(dest);
+
+        Message message = session.createMessage();
+
+        try {
+            producer.send(dest, message);
+            fail("Expected exception not thrown");
+        } catch (UnsupportedOperationException uoe) {
+            // expected
+        }
+
+        try {
+            producer.send(dest, message, completionListener);
+            fail("Expected exception not thrown");
+        } catch (UnsupportedOperationException uoe) {
+            // expected
+        }
+
+        try {
+            producer.send(dest, message, Message.DEFAULT_DELIVERY_MODE, Message.DEFAULT_PRIORITY, Message.DEFAULT_TIME_TO_LIVE);
+            fail("Expected exception not thrown");
+        } catch (UnsupportedOperationException uoe) {
+            // expected
+        }
+
+        try {
+            producer.send(dest, message, Message.DEFAULT_DELIVERY_MODE, Message.DEFAULT_PRIORITY, Message.DEFAULT_TIME_TO_LIVE, completionListener);
+            fail("Expected exception not thrown");
+        } catch (UnsupportedOperationException uoe) {
+            // expected
+        }
+    }
+
+    @Test(timeout = 10000)
+    public void testAnonymousDestinationProducerThrowsIDEWhenNullDestinationIsProvided() throws Exception {
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createQueueConnection();
+        Session session = connection.createSession();
+        MessageProducer producer = session.createProducer(null);
+
+        Message message = session.createMessage();
+
+        try {
+            producer.send(null, message);
+            fail("Expected exception not thrown");
+        } catch (InvalidDestinationException ide) {
+            // expected
+        }
+
+        try {
+            producer.send(null, message, completionListener);
+            fail("Expected exception not thrown");
+        } catch (InvalidDestinationException ide) {
+            // expected
+        }
+
+        try {
+            producer.send(null, message, Message.DEFAULT_DELIVERY_MODE, Message.DEFAULT_PRIORITY, Message.DEFAULT_TIME_TO_LIVE);
+            fail("Expected exception not thrown");
+        } catch (InvalidDestinationException ide) {
+            // expected
+        }
+
+        try {
+            producer.send(null, message, Message.DEFAULT_DELIVERY_MODE, Message.DEFAULT_PRIORITY, Message.DEFAULT_TIME_TO_LIVE, completionListener);
+            fail("Expected exception not thrown");
+        } catch (InvalidDestinationException ide) {
+            // expected
+        }
+    }
+
+    @Test(timeout = 10000)
+    public void testAnonymousProducerThrowsIAEWhenNullCompletionListenerProvided() throws Exception {
+        Destination dest = new MockJMSQueue("explicitDestination");
+
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createQueueConnection();
+        Session session = connection.createSession();
+        MessageProducer producer = session.createProducer(null);
+
+        Message message = session.createMessage();
+
+        try {
+            producer.send(dest, message, null);
+            fail("Expected exception not thrown");
+        } catch (IllegalArgumentException iae) {
+            // expected
+        }
+
+        try {
+            producer.send(dest, message, Message.DEFAULT_DELIVERY_MODE, Message.DEFAULT_PRIORITY, Message.DEFAULT_TIME_TO_LIVE, null);
+            fail("Expected exception not thrown");
+        } catch (IllegalArgumentException iae) {
+            // expected
+        }
+    }
+
+    @Test(timeout = 10000)
+    public void testExplicitProducerThrowsIAEWhenNullCompletionListenerIsProvided() throws Exception {
+        Destination dest = new MockJMSQueue("explicitDestination");
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createQueueConnection();
+        Session session = connection.createSession();
+        MessageProducer producer = session.createProducer(dest);
+
+        Message message = session.createMessage();
+
+        try {
+            producer.send(message, null);
+            fail("Expected exception not thrown");
+        } catch (IllegalArgumentException iae) {
+            // expected
+        }
+
+        try {
+            producer.send(message, Message.DEFAULT_DELIVERY_MODE, Message.DEFAULT_PRIORITY, Message.DEFAULT_TIME_TO_LIVE, null);
+            fail("Expected exception not thrown");
+        } catch (IllegalArgumentException iae) {
+            // expected
+        }
+    }
+
+    //----- Test Support -----------------------------------------------------//
+
+    private class TestCompletionListener implements CompletionListener {
+
+        @Override
+        public void onCompletion(Message message) {
+        }
+
+        @Override
+        public void onException(Message message, Exception exception) {
+        }
     }
 }

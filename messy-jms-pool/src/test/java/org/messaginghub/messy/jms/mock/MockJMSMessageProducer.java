@@ -233,6 +233,8 @@ public class MockJMSMessageProducer implements MessageProducer, AutoCloseable {
         if (completionListener == null) {
             throw new IllegalArgumentException("CompletionListener cannot be null");
         }
+
+        session.send(this, destination, message, deliveryMode, priority, timeToLive, disableMessageId, disableTimestamp, deliveryMode, null);
     }
 
     //----- Internal Support Methods -----------------------------------------//
