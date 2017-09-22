@@ -35,7 +35,7 @@ public class JmsPoolMessageProducer implements MessageProducer, AutoCloseable {
     private final MessageProducer messageProducer;
     private final Destination destination;
 
-    private final boolean anonymous;
+    private final boolean shared;
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
     private int deliveryMode;
@@ -45,11 +45,11 @@ public class JmsPoolMessageProducer implements MessageProducer, AutoCloseable {
     private long timeToLive;
     private long deliveryDelay;
 
-    public JmsPoolMessageProducer(JmsPoolSession session, MessageProducer messageProducer, Destination destination) throws JMSException {
+    public JmsPoolMessageProducer(JmsPoolSession session, MessageProducer messageProducer, Destination destination, boolean shared) throws JMSException {
         this.session = session;
         this.messageProducer = messageProducer;
         this.destination = destination;
-        this.anonymous = messageProducer.getDestination() == null;
+        this.shared = shared;
 
         this.deliveryMode = messageProducer.getDeliveryMode();
         this.disableMessageID = messageProducer.getDisableMessageID();
@@ -66,7 +66,7 @@ public class JmsPoolMessageProducer implements MessageProducer, AutoCloseable {
     public void close() throws JMSException {
         if (closed.compareAndSet(false, true)) {
             session.onMessageProducerClosed(this);
-            if (!anonymous) {
+            if (!shared) {
                 this.messageProducer.close();
             }
         }
@@ -92,7 +92,7 @@ public class JmsPoolMessageProducer implements MessageProducer, AutoCloseable {
         checkClosed();
 
         if (destination == null) {
-            if (messageProducer.getDestination() == null) {
+            if (this.destination == null) {
                 throw new UnsupportedOperationException("A destination must be specified.");
             }
             throw new InvalidDestinationException("Don't understand null destinations");
@@ -103,7 +103,7 @@ public class JmsPoolMessageProducer implements MessageProducer, AutoCloseable {
         // just in case let only one thread send at once
         synchronized (messageProducer) {
 
-            if (anonymous && this.destination != null && !this.destination.equals(destination)) {
+            if (this.destination != null && !this.destination.equals(destination)) {
                 throw new UnsupportedOperationException("This producer can only send messages to: " + this.destination);
             }
 
@@ -135,7 +135,7 @@ public class JmsPoolMessageProducer implements MessageProducer, AutoCloseable {
         checkClosed();
 
         if (destination == null) {
-            if (messageProducer.getDestination() == null) {
+            if (this.destination == null) {
                 throw new UnsupportedOperationException("A destination must be specified.");
             }
             throw new InvalidDestinationException("Don't understand null destinations");
@@ -146,13 +146,25 @@ public class JmsPoolMessageProducer implements MessageProducer, AutoCloseable {
         // just in case let only one thread send at once
         synchronized (messageProducer) {
 
-            if (anonymous && this.destination != null && !this.destination.equals(destination)) {
+            if (this.destination != null && !this.destination.equals(destination)) {
                 throw new UnsupportedOperationException("This producer can only send messages to: " + this.destination);
+            }
+
+            long oldDelayValue = 0;
+            if (deliveryDelay != 0 && session.isJMSVersionSupported(2, 0)) {
+                oldDelayValue = messageProducer.getDeliveryDelay();
+                messageProducer.setDeliveryDelay(deliveryDelay);
             }
 
             // Producer will do it's own Destination validation so always use the destination
             // based send method otherwise we might violate a JMS rule.
-            messageProducer.send(destination, message, deliveryMode, priority, timeToLive);
+            try {
+                messageProducer.send(destination, message, deliveryMode, priority, timeToLive);
+            } finally {
+                if (deliveryDelay != 0 && session.isJMSVersionSupported(2, 0)) {
+                    messageProducer.setDeliveryDelay(oldDelayValue);
+                }
+            }
         }
     }
 
@@ -235,12 +247,9 @@ public class JmsPoolMessageProducer implements MessageProducer, AutoCloseable {
     public void setDeliveryDelay(long deliveryDelay) throws JMSException {
         checkClosed();
         session.checkClientJMSVersionSupport(2, 0);
-        if (anonymous) {
-            this.deliveryDelay = deliveryDelay;
-            this.messageProducer.setDeliveryDelay(deliveryDelay);
-        } else {
-            throw new JMSException("Shared Pooled Producers cannot use delivery delay");
-        }
+
+        this.deliveryDelay = deliveryDelay;
+        this.messageProducer.setDeliveryDelay(deliveryDelay);
     }
 
     @Override
@@ -257,10 +266,6 @@ public class JmsPoolMessageProducer implements MessageProducer, AutoCloseable {
 
     protected MessageProducer getDelegate() {
         return messageProducer;
-    }
-
-    protected boolean isAnonymous() {
-        return anonymous;
     }
 
     protected void checkClosed() throws IllegalStateException {

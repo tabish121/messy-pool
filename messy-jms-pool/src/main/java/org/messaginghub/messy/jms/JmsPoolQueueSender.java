@@ -27,8 +27,8 @@ import javax.jms.QueueSender;
  */
 public class JmsPoolQueueSender extends JmsPoolMessageProducer implements QueueSender, AutoCloseable {
 
-    public JmsPoolQueueSender(JmsPoolSession session, QueueSender messageProducer, Destination destination) throws JMSException {
-        super(session, messageProducer, destination);
+    public JmsPoolQueueSender(JmsPoolSession session, QueueSender messageProducer, Destination destination, boolean shared) throws JMSException {
+        super(session, messageProducer, destination, shared);
     }
 
     @Override

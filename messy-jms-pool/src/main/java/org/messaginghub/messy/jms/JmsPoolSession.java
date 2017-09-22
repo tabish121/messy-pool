@@ -601,19 +601,19 @@ public class JmsPoolSession implements Session, TopicSession, QueueSession, XASe
     }
 
     private QueueSender addQueueSender(QueueSender sender, Queue queue) throws JMSException {
-        sender = new JmsPoolQueueSender(this, sender, queue);
+        sender = new JmsPoolQueueSender(this, sender, queue, useAnonymousProducers);
         producers.add(sender);
         return sender;
     }
 
     private TopicPublisher addTopicPublisher(TopicPublisher publisher, Topic topic) throws JMSException {
-        publisher = new JmsPoolTopicPublisher(this, publisher, topic);
+        publisher = new JmsPoolTopicPublisher(this, publisher, topic, useAnonymousProducers);
         producers.add(publisher);
         return publisher;
     }
 
     private MessageProducer addMessageProducer(MessageProducer producer, Destination destination) throws JMSException {
-        producer = new JmsPoolMessageProducer(this, producer, destination);
+        producer = new JmsPoolMessageProducer(this, producer, destination, useAnonymousProducers);
         producers.add(producer);
         return producer;
     }

@@ -39,7 +39,6 @@ import javax.jms.TopicConnection;
 import javax.jms.TopicSession;
 
 import org.messaginghub.messy.jms.pool.PooledConnection;
-import org.messaginghub.messy.jms.pool.PooledSessionKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,7 +58,6 @@ public class JmsPoolConnection implements TopicConnection, QueueConnection, JmsP
 
     private final AtomicBoolean closed = new AtomicBoolean();
 
-    private volatile boolean stopped;
     private final List<TemporaryQueue> connTempQueues = new CopyOnWriteArrayList<TemporaryQueue>();
     private final List<TemporaryTopic> connTempTopics = new CopyOnWriteArrayList<TemporaryTopic>();
     private final List<JmsPoolSession> loanedSessions = new CopyOnWriteArrayList<JmsPoolSession>();
@@ -74,15 +72,6 @@ public class JmsPoolConnection implements TopicConnection, QueueConnection, JmsP
      */
     public JmsPoolConnection(PooledConnection pool) {
         this.connection = pool;
-    }
-
-    /**
-     * Factory method to create a new instance.
-     *
-     * @return a new PooledConnection instance.
-     */
-    public JmsPoolConnection newInstance() {
-        return new JmsPoolConnection(connection);
     }
 
     @Override
@@ -106,7 +95,6 @@ public class JmsPoolConnection implements TopicConnection, QueueConnection, JmsP
     @Override
     public void stop() throws JMSException {
         checkClosed();
-        stopped = true;
     }
 
     @Override
@@ -229,9 +217,7 @@ public class JmsPoolConnection implements TopicConnection, QueueConnection, JmsP
 
     @Override
     public void onSessionClosed(JmsPoolSession session) {
-        if (session != null) {
-            this.loanedSessions.remove(session);
-        }
+        this.loanedSessions.remove(session);
     }
 
     public Connection getConnection() throws JMSException {
@@ -322,18 +308,9 @@ public class JmsPoolConnection implements TopicConnection, QueueConnection, JmsP
 
     //----- Internal support methods -----------------------------------------//
 
-    protected boolean isStopped() {
-        return stopped;
-    }
-
     protected void checkClosed() throws IllegalStateException {
         if (closed.get()) {
             throw new IllegalStateException("Connection closed");
         }
-    }
-
-    protected Session createSession(PooledSessionKey key) throws JMSException {
-        checkClosed();
-        return getConnection().createSession(key.isTransacted(), key.getAckMode());
     }
 }

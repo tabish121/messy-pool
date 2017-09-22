@@ -27,8 +27,8 @@ import javax.jms.TopicPublisher;
  */
 public class JmsPoolTopicPublisher extends JmsPoolMessageProducer implements TopicPublisher, AutoCloseable {
 
-    public JmsPoolTopicPublisher(JmsPoolSession session, TopicPublisher messageProducer, Destination destination) throws JMSException {
-        super(session, messageProducer, destination);
+    public JmsPoolTopicPublisher(JmsPoolSession session, TopicPublisher messageProducer, Destination destination, boolean shared) throws JMSException {
+        super(session, messageProducer, destination, shared);
     }
 
     @Override
