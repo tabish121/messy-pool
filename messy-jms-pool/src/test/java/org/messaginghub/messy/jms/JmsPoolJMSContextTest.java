@@ -467,6 +467,30 @@ public class JmsPoolJMSContextTest extends JmsPoolTestSupport {
     }
 
     @Test(timeout = 30000)
+    public void testCreateContextOptOutConfigurationWithCredentials() {
+        cf.setUseProviderJMSContext(true);
+
+        JMSContext context = cf.createContext("user", "password");
+
+        assertNotNull(context);
+        assertFalse(context instanceof JmsPoolJMSContext);
+        assertTrue(context instanceof MockJMSContext);
+        assertEquals(0, cf.getNumConnections());
+    }
+
+    @Test(timeout = 30000)
+    public void testCreateContextOptOutConfigurationUserName() {
+        cf.setUseProviderJMSContext(true);
+
+        JMSContext context = cf.createContext("user", null);
+
+        assertNotNull(context);
+        assertFalse(context instanceof JmsPoolJMSContext);
+        assertTrue(context instanceof MockJMSContext);
+        assertEquals(0, cf.getNumConnections());
+    }
+
+    @Test(timeout = 30000)
     public void testCreateContextFromExistingContext() {
         JmsPoolJMSContext context1 = (JmsPoolJMSContext) cf.createContext();
         JmsPoolJMSContext context2 = (JmsPoolJMSContext) context1.createContext(Session.AUTO_ACKNOWLEDGE);
