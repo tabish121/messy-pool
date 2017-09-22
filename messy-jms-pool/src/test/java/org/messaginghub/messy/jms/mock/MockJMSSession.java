@@ -528,13 +528,21 @@ public class MockJMSSession implements Session, QueueSession, TopicSession, Auto
 
     protected void remove(MockJMSMessageConsumer consumer) throws JMSException {
         consumers.remove(consumer.getConsumerId());
+
+        for (MockJMSSessionListener listener : sessionListeners) {
+            listener.onConsumerClose(this, consumer);
+        }
     }
 
     protected void add(MockJMSMessageProducer producer) {
         producers.put(producer.getProducerId(), producer);
     }
 
-    protected void remove(MockJMSMessageProducer producer) {
+    protected void remove(MockJMSMessageProducer producer) throws JMSException {
         producers.remove(producer.getProducerId());
+
+        for (MockJMSSessionListener listener : sessionListeners) {
+            listener.onProducerClose(this, producer);
+        }
     }
 }

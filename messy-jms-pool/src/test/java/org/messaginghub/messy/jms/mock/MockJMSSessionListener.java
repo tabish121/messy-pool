@@ -29,4 +29,8 @@ public interface MockJMSSessionListener {
 
     default void onSessionClosed(MockJMSSession session) throws JMSException {}
 
+    default void onConsumerClose(MockJMSSession session, MockJMSMessageConsumer consumer) throws JMSException {}
+
+    default void onProducerClose(MockJMSSession session, MockJMSMessageProducer producer) throws JMSException {}
+
 }

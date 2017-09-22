@@ -21,37 +21,53 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 
-import javax.jms.IllegalStateException;
+import javax.jms.IllegalStateRuntimeException;
+import javax.jms.JMSConsumer;
 import javax.jms.JMSException;
+import javax.jms.JMSRuntimeException;
 import javax.jms.Message;
-import javax.jms.MessageConsumer;
 import javax.jms.MessageListener;
-import javax.jms.Queue;
-import javax.jms.Session;
 
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 /**
- * Tests for the JMS Pool MessageConsumer wrapper
+ *
  */
-public class JmsPoolMessageConusmerTest extends JmsPoolTestSupport {
+public class JmsPoolJMSConsumerTest extends JmsPoolTestSupport {
 
-    @Test
+    private JmsPoolJMSContext context;
+
+    @Override
+    @Before
+    public void setUp() throws Exception {
+        super.setUp();
+
+        context = (JmsPoolJMSContext) cf.createContext();
+    }
+
+    @Override
+    @After
+    public void tearDown() throws Exception {
+        try {
+            context.close();
+        } finally {
+            super.tearDown();
+        }
+    }
+
+    //----- Test basic functionality -----------------------------------------//
+
+    @Test(timeout = 30000)
     public void testToString() throws JMSException {
-        JmsPoolConnection connection = (JmsPoolConnection) cf.createQueueConnection();
-        Session session = connection.createSession();
-        Queue queue = session.createTemporaryQueue();
-        MessageConsumer consumer = session.createConsumer(queue);
-
+        JMSConsumer consumer = context.createConsumer(context.createTemporaryQueue());
         assertNotNull(consumer.toString());
     }
 
     @Test
     public void testCloseMoreThanOnce() throws JMSException {
-        JmsPoolConnection connection = (JmsPoolConnection) cf.createQueueConnection();
-        Session session = connection.createSession();
-        Queue queue = session.createTemporaryQueue();
-        MessageConsumer consumer = session.createConsumer(queue);
+        JMSConsumer consumer = context.createConsumer(context.createTemporaryQueue());
 
         consumer.close();
         consumer.close();
@@ -59,10 +75,7 @@ public class JmsPoolMessageConusmerTest extends JmsPoolTestSupport {
 
     @Test
     public void testReceive() throws JMSException {
-        JmsPoolConnection connection = (JmsPoolConnection) cf.createQueueConnection();
-        Session session = connection.createSession();
-        Queue queue = session.createTemporaryQueue();
-        MessageConsumer consumer = session.createConsumer(queue, "Color = Red");
+        JMSConsumer consumer = context.createConsumer(context.createTemporaryQueue());
 
         assertNull(consumer.receive());
 
@@ -71,15 +84,12 @@ public class JmsPoolMessageConusmerTest extends JmsPoolTestSupport {
         try {
             consumer.receive();
             fail("Should not be able to interact with closed consumer");
-        } catch (IllegalStateException ise) {}
+        } catch (IllegalStateRuntimeException ise) {}
     }
 
     @Test
     public void testReceiveNoWait() throws JMSException {
-        JmsPoolConnection connection = (JmsPoolConnection) cf.createQueueConnection();
-        Session session = connection.createSession();
-        Queue queue = session.createTemporaryQueue();
-        MessageConsumer consumer = session.createConsumer(queue, "Color = Red");
+        JMSConsumer consumer = context.createConsumer(context.createTemporaryQueue());
 
         assertNull(consumer.receiveNoWait());
 
@@ -88,15 +98,12 @@ public class JmsPoolMessageConusmerTest extends JmsPoolTestSupport {
         try {
             consumer.receiveNoWait();
             fail("Should not be able to interact with closed consumer");
-        } catch (IllegalStateException ise) {}
+        } catch (IllegalStateRuntimeException ise) {}
     }
 
     @Test
     public void testReceiveTimed() throws JMSException {
-        JmsPoolConnection connection = (JmsPoolConnection) cf.createQueueConnection();
-        Session session = connection.createSession();
-        Queue queue = session.createTemporaryQueue();
-        MessageConsumer consumer = session.createConsumer(queue, "Color = Red");
+        JMSConsumer consumer = context.createConsumer(context.createTemporaryQueue());
 
         assertNull(consumer.receive(1));
 
@@ -105,15 +112,12 @@ public class JmsPoolMessageConusmerTest extends JmsPoolTestSupport {
         try {
             consumer.receive(1);
             fail("Should not be able to interact with closed consumer");
-        } catch (IllegalStateException ise) {}
+        } catch (IllegalStateRuntimeException ise) {}
     }
 
     @Test
     public void testGetMessageSelector() throws JMSException {
-        JmsPoolConnection connection = (JmsPoolConnection) cf.createQueueConnection();
-        Session session = connection.createSession();
-        Queue queue = session.createTemporaryQueue();
-        MessageConsumer consumer = session.createConsumer(queue, "Color = Red");
+        JMSConsumer consumer = context.createConsumer(context.createTemporaryQueue(), "Color = Red");
 
         assertNotNull(consumer.getMessageSelector());
         assertEquals("Color = Red", consumer.getMessageSelector());
@@ -123,15 +127,12 @@ public class JmsPoolMessageConusmerTest extends JmsPoolTestSupport {
         try {
             consumer.getMessageSelector();
             fail("Should not be able to interact with closed consumer");
-        } catch (IllegalStateException ise) {}
+        } catch (IllegalStateRuntimeException ise) {}
     }
 
     @Test
     public void testSetMessageListener() throws JMSException {
-        JmsPoolConnection connection = (JmsPoolConnection) cf.createQueueConnection();
-        Session session = connection.createSession();
-        Queue queue = session.createTemporaryQueue();
-        MessageConsumer consumer = session.createConsumer(queue);
+        JMSConsumer consumer = context.createConsumer(context.createTemporaryQueue());
 
         MessageListener listener = new MessageListener() {
 
@@ -150,11 +151,41 @@ public class JmsPoolMessageConusmerTest extends JmsPoolTestSupport {
         try {
             consumer.setMessageListener(null);
             fail("Should not be able to interact with closed consumer");
-        } catch (IllegalStateException ise) {}
+        } catch (IllegalStateRuntimeException ise) {}
 
         try {
             consumer.getMessageListener();
             fail("Should not be able to interact with closed consumer");
-        } catch (IllegalStateException ise) {}
+        } catch (IllegalStateRuntimeException ise) {}
+    }
+
+    @Test
+    public void testReceiveBody() throws JMSException {
+        JMSConsumer consumer = context.createConsumer(context.createTemporaryQueue());
+
+        try {
+            consumer.receiveBody(String.class);
+            fail("Should not be able to interact with closed consumer");
+        } catch (JMSRuntimeException ise) {}
+    }
+
+    @Test
+    public void testReceiveBodyNoWait() throws JMSException {
+        JMSConsumer consumer = context.createConsumer(context.createTemporaryQueue());
+
+        try {
+            consumer.receiveBodyNoWait(String.class);
+            fail("Should not be able to interact with closed consumer");
+        } catch (JMSRuntimeException ise) {}
+    }
+
+    @Test
+    public void testReceiveBodyTimed() throws JMSException {
+        JMSConsumer consumer = context.createConsumer(context.createTemporaryQueue());
+
+        try {
+            consumer.receiveBody(String.class, 1);
+            fail("Should not be able to interact with closed consumer");
+        } catch (JMSRuntimeException ise) {}
     }
 }
