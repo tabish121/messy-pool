@@ -16,20 +16,29 @@
  */
 package org.messaginghub.messy.jms;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import javax.jms.DeliveryMode;
 import javax.jms.IllegalStateException;
 import javax.jms.JMSException;
+import javax.jms.Message;
 import javax.jms.Queue;
 import javax.jms.QueueSender;
 import javax.jms.QueueSession;
 import javax.jms.Session;
+import javax.jms.TextMessage;
 
 import org.junit.Test;
+import org.messaginghub.messy.jms.mock.MockJMSConnection;
+import org.messaginghub.messy.jms.mock.MockJMSConnectionListener;
 import org.messaginghub.messy.jms.mock.MockJMSQueueSender;
+import org.messaginghub.messy.jms.mock.MockJMSSession;
 
 /**
  * Test for the JMS Pools QueueSender wrapper.
@@ -80,5 +89,67 @@ public class JmsPoolQueueSenderTest extends JmsPoolTestSupport {
             sender.getQueueSender();
             fail("Cannot read state on closed sender");
         } catch (IllegalStateException ise) {}
+    }
+
+    @Test
+    public void testSendToQueue() throws JMSException {
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createTopicConnection();
+        QueueSession session = connection.createQueueSession(false, Session.AUTO_ACKNOWLEDGE);
+        Queue queue = session.createTemporaryQueue();
+        QueueSender sender = session.createSender(null);
+
+        final AtomicBoolean sent = new AtomicBoolean();
+        MockJMSConnection mockConnection = (MockJMSConnection) connection.getConnection();
+        mockConnection.addConnectionListener(new MockJMSConnectionListener() {
+
+            @Override
+            public void onMessageSend(MockJMSSession session, Message message) throws JMSException {
+                assertTrue(message instanceof TextMessage);
+                sent.set(true);
+            }
+        });
+
+        sender.send(queue, session.createTextMessage());
+
+        assertTrue(sent.get());
+    }
+
+    @Test
+    public void testSendToQueueWithOverrides() throws JMSException {
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createTopicConnection();
+        QueueSession session = connection.createQueueSession(false, Session.AUTO_ACKNOWLEDGE);
+        Queue queue = session.createTemporaryQueue();
+        QueueSender sender = session.createSender(null);
+
+        final AtomicBoolean sent = new AtomicBoolean();
+        MockJMSConnection mockConnection = (MockJMSConnection) connection.getConnection();
+        mockConnection.addConnectionListener(new MockJMSConnectionListener() {
+
+            @Override
+            public void onMessageSend(MockJMSSession session, Message message) throws JMSException {
+                assertEquals(DeliveryMode.PERSISTENT, message.getJMSDeliveryMode());
+                assertEquals(9, message.getJMSPriority());
+                assertTrue(message.getJMSExpiration() != 0);
+
+                sent.set(true);
+            }
+        });
+
+        sender.send(queue, session.createTextMessage(), DeliveryMode.PERSISTENT, 9, 100);
+
+        assertTrue(sent.get());
+    }
+
+    @Test
+    public void testSendToQueueFailsIfNotAnonymousPublisher() throws JMSException {
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createTopicConnection();
+        QueueSession session = connection.createQueueSession(false, Session.AUTO_ACKNOWLEDGE);
+        Queue queue = session.createTemporaryQueue();
+        QueueSender sender = session.createSender(queue);
+
+        try {
+            sender.send(session.createTemporaryQueue(), session.createTextMessage());
+            fail("Should not be able to send to alternate destination");
+        } catch (UnsupportedOperationException ex) {}
     }
 }

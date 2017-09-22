@@ -32,13 +32,13 @@ public class JmsPoolQueueSender extends JmsPoolMessageProducer implements QueueS
     }
 
     @Override
-    public void send(Queue queue, Message message, int i, int i1, long l) throws JMSException {
-        getQueueSender().send(queue, message, i, i1, l);
+    public void send(Queue queue, Message message, int deliveryMode, int priority, long timeToLine) throws JMSException {
+        super.send(queue, message, deliveryMode, priority, timeToLine);
     }
 
     @Override
     public void send(Queue queue, Message message) throws JMSException {
-        getQueueSender().send(queue, message);
+        super.send(queue, message);
     }
 
     @Override
