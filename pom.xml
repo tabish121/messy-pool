@@ -93,6 +93,7 @@
   <modules>
     <module>messy-jms-pool</module>
     <module>messy-jms-interop-tests</module>
+    <module>messy-jms-docs</module>
   </modules>
 
   <distributionManagement>
