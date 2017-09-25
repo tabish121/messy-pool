@@ -193,6 +193,7 @@ public class JmsPoolMessageProducer implements MessageProducer, AutoCloseable {
             }
         }
     }
+
     //----- MessageProducer configuration ------------------------------------//
 
     @Override

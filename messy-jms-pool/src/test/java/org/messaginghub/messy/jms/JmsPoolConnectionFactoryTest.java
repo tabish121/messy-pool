@@ -17,6 +17,7 @@
 package org.messaginghub.messy.jms;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
@@ -59,6 +60,22 @@ public class JmsPoolConnectionFactoryTest extends JmsPoolTestSupport {
         assertTrue(cf instanceof QueueConnectionFactory);
         assertTrue(cf instanceof TopicConnectionFactory);
         cf.stop();
+    }
+
+    @Test(timeout = 60000)
+    public void testSetReconnectOnException() throws  Exception {
+        cf = new JmsPoolConnectionFactory();
+        assertTrue(cf.isReconnectOnException());
+        cf.setReconnectOnException(false);
+        assertFalse(cf.isReconnectOnException());
+    }
+
+    @Test(timeout = 60000)
+    public void testSetTimeBetweenExpirationCheckMillis() throws  Exception {
+        cf = new JmsPoolConnectionFactory();
+        assertEquals(-1, cf.getTimeBetweenExpirationCheckMillis());
+        cf.setTimeBetweenExpirationCheckMillis(5000);
+        assertEquals(5000, cf.getTimeBetweenExpirationCheckMillis());
     }
 
     @Test(timeout = 60000)
@@ -242,15 +259,32 @@ public class JmsPoolConnectionFactoryTest extends JmsPoolTestSupport {
         cf.stop();
 
         assertEquals(0, cf.getNumConnections());
-
         assertNull(cf.createConnection());
-
         assertEquals(0, cf.getNumConnections());
 
         cf.start();
 
         assertNotNull(cf.createConnection());
+        assertEquals(1, cf.getNumConnections());
 
+        cf.stop();
+    }
+
+    @Test(timeout = 60000)
+    public void testCannotCreateContextOnStoppedFactory() throws Exception {
+        MockJMSConnectionFactory mock = new MockJMSConnectionFactory();
+        cf = new JmsPoolConnectionFactory();
+        cf.setConnectionFactory(mock);
+        cf.setMaxConnections(100);
+        cf.stop();
+
+        assertEquals(0, cf.getNumConnections());
+        assertNull(cf.createContext());
+        assertEquals(0, cf.getNumConnections());
+
+        cf.start();
+
+        assertNotNull(cf.createContext());
         assertEquals(1, cf.getNumConnections());
 
         cf.stop();
