@@ -260,7 +260,7 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
             return createProviderContext(username, password, sessionMode);
         } else {
             try {
-                return new JmsPoolJMSContext(createJmsPoolConnection(username, password), sessionMode);
+                return newPooledConnectionContext(createJmsPoolConnection(username, password), sessionMode);
             } catch (JMSException e) {
                 throw JMSExceptionSupport.createRuntimeException(e);
             }
@@ -606,6 +606,19 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
      */
     protected JmsPoolConnection newPooledConnectionWrapper(PooledConnection connection) {
         return new JmsPoolConnection(connection);
+    }
+
+    /**
+     * Allows subclasses to create an appropriate JmsPoolJMSContext wrapper for the newly
+     * create JMSContext such as one that provides support for XA Transactions.
+     *
+     * @param connection
+     * 		The {@link JmsPoolConnection} to use in the JMSContext wrapper.
+     *
+     * @return a new {@link JmsPoolJMSContext} that wraps the given {@link JmsPoolConnection}
+     */
+    protected JmsPoolJMSContext newPooledConnectionContext(JmsPoolConnection connection, int sessionMode) {
+        return new JmsPoolJMSContext(connection, sessionMode);
     }
 
     /**

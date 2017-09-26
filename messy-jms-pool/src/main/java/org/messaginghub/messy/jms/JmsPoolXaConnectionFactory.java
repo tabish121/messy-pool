@@ -118,6 +118,11 @@ public class JmsPoolXaConnectionFactory extends JmsPoolConnectionFactory impleme
         return new PooledXAConnection(connection, getTransactionManager());
     }
 
+    @Override
+    protected JmsPoolXAJMSContext newPooledConnectionContext(JmsPoolConnection connection, int sessionMode) {
+        return new JmsPoolXAJMSContext(connection, sessionMode);
+    }
+
     @SuppressWarnings("unchecked")
     @Override
     public Object getObjectInstance(Object obj, Name name, Context nameCtx, Hashtable<?, ?> environment) throws Exception {

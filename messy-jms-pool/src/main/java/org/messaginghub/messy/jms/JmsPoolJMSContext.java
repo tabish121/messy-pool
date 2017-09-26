@@ -49,8 +49,9 @@ import org.messaginghub.messy.jms.util.JMSExceptionSupport;
  */
 public class JmsPoolJMSContext implements JMSContext, AutoCloseable {
 
+    protected final JmsPoolConnection connection;
+
     private final AtomicLong connectionRefCount;
-    private final JmsPoolConnection connection;
     private final int sessionMode;
 
     private JmsPoolSession session;
@@ -492,7 +493,7 @@ public class JmsPoolJMSContext implements JMSContext, AutoCloseable {
 
     //----- Internal implementation methods ----------------------------------//
 
-    private JmsPoolSession getSession() {
+    protected JmsPoolSession getSession() {
         if (session == null) {
             synchronized (this) {
                 if (session == null) {
