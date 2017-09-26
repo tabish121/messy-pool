@@ -72,9 +72,13 @@ import org.slf4j.LoggerFactory;
  * configure the idle eviction thread to run.
  */
 public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnectionFactory, TopicConnectionFactory {
+
     private static final transient Logger LOG = LoggerFactory.getLogger(JmsPoolConnectionFactory.class);
 
+    public static final int DEFAULT_MAX_CONNECTIONS = 1;
+
     protected final AtomicBoolean stopped = new AtomicBoolean(false);
+
     private GenericKeyedObjectPool<PooledConnectionKey, PooledConnection> connectionsPool;
 
     protected Object connectionFactory;
@@ -154,7 +158,7 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
                 }, poolConfig);
 
             // Set max idle (not max active) since our connections always idle in the pool.
-            this.connectionsPool.setMaxIdlePerKey(1);
+            this.connectionsPool.setMaxIdlePerKey(DEFAULT_MAX_CONNECTIONS);
             this.connectionsPool.setLifo(false);
 
             // We always want our validate method to control when idle objects are evicted.
@@ -177,20 +181,20 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
      * into the pool.  In order to allocate new Connections based off this new ConnectionFactory
      * it is first necessary to {@link #clear} the pooled Connections.
      *
-     * @param toUse
+     * @param factory
      *      The factory to use to create pooled Connections.
      */
-    public void setConnectionFactory(final Object toUse) {
-        if (toUse instanceof ConnectionFactory) {
+    public void setConnectionFactory(final Object factory) {
+        if (factory instanceof ConnectionFactory) {
             try {
-                toUse.getClass().getMethod("createContext", int.class);
+                factory.getClass().getMethod("createContext", int.class);
                 LOG.info("Porovided ConnectionFactory is JMS 2.0+ capable.");
                 jmsContextSupported = true;
             } catch (NoSuchMethodException | SecurityException e) {
                 LOG.info("Porovided ConnectionFactory is not JMS 2.0+ capable.");
             }
 
-            this.connectionFactory = toUse;
+            this.connectionFactory = factory;
         } else {
             throw new IllegalArgumentException("connectionFactory should implement javax.jms.ConnectionFactory");
         }
@@ -269,6 +273,13 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
 
     //----- Setup and Close --------------------------------------------------//
 
+    /**
+     * Starts the Connection pool.
+     * <p>
+     * If configured to do so this method will attempt to create an initial Connection to place
+     * into the pool using the default {@link ConnectionFactory#createConnection()} from the configured
+     * provider {@link ConnectionFactory}.
+     */
     public void start() {
         LOG.debug("Staring the PooledConnectionFactory: create on start = {}", isCreateConnectionOnStartup());
         stopped.set(false);
@@ -282,6 +293,13 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
         }
     }
 
+    /**
+     * Stops the pool from providing any new connections and closes all pooled Connections.
+     * <p>
+     * This method stops services from the JMS Connection Pool closing down any Connections in
+     * the pool regardless of them being loaned out at the time.  The pool cannot be restarted
+     * after a call to stop.
+     */
     public void stop() {
         if (stopped.compareAndSet(false, true)) {
             LOG.debug("Stopping the PooledConnectionFactory, number of connections in cache: {}",
@@ -300,8 +318,8 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
     /**
      * Clears all connections from the pool.  Each connection that is currently in the pool is
      * closed and removed from the pool.  A new connection will be created on the next call to
-     * {@link #createConnection}.  Care should be taken when using this method as Connections that
-     * are in use be client's will be closed.
+     * {@link #createConnection} if the pool has not been stopped.  Care should be taken when
+     * using this method as Connections that are in use be client's will be closed.
      */
     public void clear() {
         if (stopped.get()) {
@@ -326,6 +344,16 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
 
     /**
      * Sets the maximum number of active sessions per connection
+     * <p>
+     * A Connection that is created from this JMS Connection pool can limit the number
+     * of Sessions that are created and loaned out.  When a limit is in place the client
+     * application must be prepared to respond to failures or hangs of the various
+     * {@link Connection#createSession()} methods.
+     * <p>
+     * Because Connections can be borrowed and returned at will the available Sessions for
+     * a Connection in the pool can change dynamically so even on fresh checkout from this
+     * pool a Connection may not have any available Session instances to loan out if a limit
+     * is configured.
      *
      * @param maximumActiveSessionPerConnection
      *      The maximum number of active session per connection in the pool.
@@ -339,12 +367,13 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
      * Connection.getSession() will block if the session pool is full.  If the
      * argument false is given, it will change the default behavior and instead the
      * call to getSession() will throw a JMSException.
+     * <p>
+     * The size of the session pool is controlled by the {@link #getMaximumActiveSessionPerConnection()}
+     * configuration property.
      *
-     * The size of the session pool is controlled by the @see #maximumActive
-     * property.
-     *
-     * @param block - if true, the call to getSession() blocks if the pool is full
-     * until a session object is available.  defaults to true.
+     * @param block
+     * 		if true, the call to getSession() blocks if the pool is full until a session
+     *      object is available.  defaults to true.
      */
     public void setBlockIfSessionPoolIsFull(boolean block) {
         this.blockIfSessionPoolIsFull = block;
@@ -374,9 +403,11 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
     /**
      * Sets the maximum number of pooled Connections (defaults to one).  Each call to
      * {@link #createConnection} will result in a new Connection being create up to the max
-     * connections value.
+     * connections value, once the maximum Connections have been created Connections are served
+     * in a last in first out ordering.
      *
-     * @param maxConnections the maxConnections to set
+     * @param maxConnections
+     * 		the maximum Connections to pool for a given user / password combination.
      */
     public void setMaxConnections(int maxConnections) {
         getConnectionsPool().setMaxIdlePerKey(maxConnections);
@@ -450,20 +481,20 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
     /**
      * Should Sessions use one anonymous producer for all producer requests or should a new
      * MessageProducer be created for each request to create a producer object, default is true.
-     *
+     * <p>
      * When enabled the session only needs to allocate one MessageProducer for all requests and
      * the MessageProducer#send(destination, message) method can be used.  Normally this is the
      * right thing to do however it does result in the Broker not showing the producers per
      * destination.
      *
-     * @return true if a PooledSession will use only a single anonymous message producer instance.
+     * @return true if a pooled Session will use only a single anonymous message producer instance.
      */
     public boolean isUseAnonymousProducers() {
         return this.useAnonymousProducers;
     }
 
     /**
-     * Sets whether a PooledSession uses only one anonymous MessageProducer instance or creates
+     * Sets whether a pooled Session uses only one anonymous MessageProducer instance or creates
      * a new MessageProducer for each call the create a MessageProducer.
      *
      * @param value
@@ -517,15 +548,16 @@ public class JmsPoolConnectionFactory implements ConnectionFactory, QueueConnect
      * Controls the behavior of the internal session pool. By default the call to
      * Connection.getSession() will block if the session pool is full.  This setting
      * will affect how long it blocks and throws an exception after the timeout.
-     *
+     * <p>
      * The size of the session pool is controlled by the @see #maximumActive
      * property.
+     * <p>
+     * Whether or not the call to create session blocks is controlled by the
+     * @see #blockIfSessionPoolIsFull property
      *
-     * Whether or not the call to create session blocks is controlled by the @see #blockIfSessionPoolIsFull
-     * property
-     *
-     * @param blockIfSessionPoolIsFullTimeout - if blockIfSessionPoolIsFullTimeout is true,
-     *                                        then use this setting to configure how long to block before retry
+     * @param blockIfSessionPoolIsFullTimeout
+     * 		if blockIfSessionPoolIsFullTimeout is true then use this setting
+     *      to configure how long to block before an error is thrown.
      */
     public void setBlockIfSessionPoolIsFullTimeout(long blockIfSessionPoolIsFullTimeout) {
         this.blockIfSessionPoolIsFullTimeout = blockIfSessionPoolIsFullTimeout;
