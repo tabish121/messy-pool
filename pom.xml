@@ -94,6 +94,7 @@
     <module>messy-jms-pool</module>
     <module>messy-jms-interop-tests</module>
     <module>messy-jms-docs</module>
+    <module>messy-jms-examples</module>
   </modules>
 
   <distributionManagement>
