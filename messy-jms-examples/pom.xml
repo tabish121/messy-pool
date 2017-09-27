@@ -26,6 +26,7 @@
   <artifactId>messy-jms-examples</artifactId>
   <name>Messy JMS Examples</name>
   <description>Examples showing the use of the JMS Pool</description>
+  <packaging>jar</packaging>
 
   <properties>
     <jacoco.skip>true</jacoco.skip>
@@ -39,6 +40,7 @@
     <dependency>
       <groupId>org.apache.qpid</groupId>
       <artifactId>qpid-jms-client</artifactId>
+      <scope>runtime</scope>
     </dependency>
 
     <!-- Provide a logging implementation to avoid
