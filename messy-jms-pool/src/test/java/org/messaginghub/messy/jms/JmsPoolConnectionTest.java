@@ -17,11 +17,15 @@
 package org.messaginghub.messy.jms;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -34,10 +38,15 @@ import javax.jms.ExceptionListener;
 import javax.jms.IllegalStateException;
 import javax.jms.JMSException;
 import javax.jms.Session;
+import javax.jms.TemporaryQueue;
+import javax.jms.TemporaryTopic;
 
 import org.junit.Test;
 import org.messaginghub.messy.jms.mock.MockJMSConnection;
 import org.messaginghub.messy.jms.mock.MockJMSConnectionFactory;
+import org.messaginghub.messy.jms.mock.MockJMSConnectionListener;
+import org.messaginghub.messy.jms.mock.MockJMSTemporaryQueue;
+import org.messaginghub.messy.jms.mock.MockJMSTemporaryTopic;
 import org.messaginghub.messy.jms.util.Wait;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -358,5 +367,119 @@ public class JmsPoolConnectionTest extends JmsPoolTestSupport {
             // all good, test succeeded
             return new Boolean(true);
         }
+    }
+
+    @Test(timeout = 60000)
+    public void testConnectionDeletesOnlyItsOwnTempQueuesOnClose() throws JMSException {
+        JmsPoolConnection connection1 = (JmsPoolConnection) cf.createConnection();
+        JmsPoolConnection connection2 = (JmsPoolConnection) cf.createConnection();
+
+        assertSame(connection1.getConnection(), connection2.getConnection());
+
+        Set<TemporaryQueue> deleted = new HashSet<>();
+
+        MockJMSConnection mockConnection = (MockJMSConnection) connection1.getConnection();
+        mockConnection.addConnectionListener(new MockJMSConnectionListener() {
+
+            @Override
+            public void onDeleteTemporaryQueue(MockJMSTemporaryQueue queue) throws JMSException {
+                deleted.add(queue);
+            }
+        });
+
+        Session session1 = connection1.createSession();
+        Session session2 = connection2.createSession();
+
+        TemporaryQueue tempQueue1 = session1.createTemporaryQueue();
+        TemporaryQueue tempQueue2 = session1.createTemporaryQueue();
+
+        TemporaryQueue tempQueue3 = session2.createTemporaryQueue();
+        TemporaryQueue tempQueue4 = session2.createTemporaryQueue();
+
+        connection1.close();
+
+        assertEquals(2, deleted.size());
+        assertTrue(deleted.contains(tempQueue1));
+        assertTrue(deleted.contains(tempQueue2));
+        assertFalse(deleted.contains(tempQueue3));
+        assertFalse(deleted.contains(tempQueue4));
+
+        connection2.close();
+        assertEquals(4, deleted.size());
+        assertTrue(deleted.contains(tempQueue1));
+        assertTrue(deleted.contains(tempQueue2));
+        assertTrue(deleted.contains(tempQueue3));
+        assertTrue(deleted.contains(tempQueue4));
+    }
+
+    @Test(timeout = 60000)
+    public void testConnectionDeletesOnlyItsOwnTempTopicsOnClose() throws JMSException {
+        JmsPoolConnection connection1 = (JmsPoolConnection) cf.createConnection();
+        JmsPoolConnection connection2 = (JmsPoolConnection) cf.createConnection();
+
+        assertSame(connection1.getConnection(), connection2.getConnection());
+
+        Set<TemporaryTopic> deleted = new HashSet<>();
+
+        MockJMSConnection mockConnection = (MockJMSConnection) connection1.getConnection();
+        mockConnection.addConnectionListener(new MockJMSConnectionListener() {
+
+            @Override
+            public void onDeleteTemporaryTopic(MockJMSTemporaryTopic queue) throws JMSException {
+                deleted.add(queue);
+            }
+        });
+
+        Session session1 = connection1.createSession();
+        Session session2 = connection2.createSession();
+
+        TemporaryTopic tempTopic1 = session1.createTemporaryTopic();
+        TemporaryTopic tempTopic2 = session1.createTemporaryTopic();
+
+        TemporaryTopic tempTopic3 = session2.createTemporaryTopic();
+        TemporaryTopic tempTopic4 = session2.createTemporaryTopic();
+
+        connection1.close();
+
+        assertEquals(2, deleted.size());
+        assertTrue(deleted.contains(tempTopic1));
+        assertTrue(deleted.contains(tempTopic2));
+        assertFalse(deleted.contains(tempTopic3));
+        assertFalse(deleted.contains(tempTopic4));
+
+        connection2.close();
+        assertEquals(4, deleted.size());
+        assertTrue(deleted.contains(tempTopic1));
+        assertTrue(deleted.contains(tempTopic2));
+        assertTrue(deleted.contains(tempTopic3));
+        assertTrue(deleted.contains(tempTopic4));
+    }
+
+    @Test(timeout = 60000)
+    public void testConnectionIgnoresDeleteTempDestinationErrorOnClose() throws JMSException {
+        JmsPoolConnection connection = (JmsPoolConnection) cf.createConnection();
+
+        MockJMSConnection mockConnection = (MockJMSConnection) connection.getConnection();
+        mockConnection.addConnectionListener(new MockJMSConnectionListener() {
+
+            @Override
+            public void onDeleteTemporaryQueue(MockJMSTemporaryQueue queue) throws JMSException {
+                throw new IllegalStateException("Destination is in use");
+            }
+
+            @Override
+            public void onDeleteTemporaryTopic(MockJMSTemporaryTopic queue) throws JMSException {
+                throw new IllegalStateException("Destination is in use");
+            }
+        });
+
+        Session session1 = connection.createSession();
+
+        TemporaryQueue tempQueue = session1.createTemporaryQueue();
+        assertNotNull(tempQueue);
+        TemporaryTopic tempTopic = session1.createTemporaryTopic();
+        assertNotNull(tempTopic);
+
+        connection.close();
     }
 }

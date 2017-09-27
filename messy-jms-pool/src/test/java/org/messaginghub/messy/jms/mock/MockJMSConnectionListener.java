@@ -38,4 +38,8 @@ public interface MockJMSConnectionListener {
 
     default void onMessageSend(MockJMSSession session, Message message) throws JMSException {}
 
+    default void onCreateMessageConsumer(MockJMSSession session, MockJMSMessageConsumer consumer) throws JMSException {}
+
+    default void onCloseMessageConsumer(MockJMSSession session, MockJMSMessageConsumer consumer) throws JMSException {}
+
 }

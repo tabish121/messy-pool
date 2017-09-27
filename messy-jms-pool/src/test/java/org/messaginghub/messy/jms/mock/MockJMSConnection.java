@@ -527,9 +527,29 @@ public class MockJMSConnection implements Connection, TopicConnection, QueueConn
         }
     }
 
+    private void signalCreateMessageConsumer(MockJMSSession session, MockJMSMessageConsumer consumer) throws JMSException {
+        for (MockJMSConnectionListener listener : connectionListeners) {
+            listener.onCreateMessageConsumer(session, consumer);
+        }
+    }
+
+    private void signalCloseMessageConsumer(MockJMSSession session, MockJMSMessageConsumer consumer) throws JMSException {
+        for (MockJMSConnectionListener listener : connectionListeners) {
+            listener.onCloseMessageConsumer(session, consumer);
+        }
+    }
+
     //----- Event points for MockJMS resources -------------------------------//
 
     void onMessageSend(MockJMSSession session, Message message) throws JMSException {
         signalMessageSend(session, message);
+    }
+
+    void onMessageConsumerCreate(MockJMSSession session, MockJMSMessageConsumer consumer) throws JMSException {
+        signalCreateMessageConsumer(session, consumer);
+    }
+
+    void onMessageConsumerClose(MockJMSSession session, MockJMSMessageConsumer consumer) throws JMSException {
+        signalCloseMessageConsumer(session, consumer);
     }
 }

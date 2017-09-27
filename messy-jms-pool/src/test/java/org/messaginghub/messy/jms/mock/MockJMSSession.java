@@ -519,6 +519,7 @@ public class MockJMSSession implements Session, QueueSession, TopicSession, Auto
     }
 
     protected void add(MockJMSMessageConsumer consumer) throws JMSException {
+        connection.onMessageConsumerCreate(this, consumer);
         consumers.put(consumer.getConsumerId(), consumer);
 
         if (started.get()) {
@@ -528,6 +529,7 @@ public class MockJMSSession implements Session, QueueSession, TopicSession, Auto
 
     protected void remove(MockJMSMessageConsumer consumer) throws JMSException {
         consumers.remove(consumer.getConsumerId());
+        connection.onMessageConsumerClose(this, consumer);
 
         for (MockJMSSessionListener listener : sessionListeners) {
             listener.onConsumerClose(this, consumer);

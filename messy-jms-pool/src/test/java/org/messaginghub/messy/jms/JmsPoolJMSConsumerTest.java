@@ -21,6 +21,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 
+import javax.jms.IllegalStateException;
 import javax.jms.IllegalStateRuntimeException;
 import javax.jms.JMSConsumer;
 import javax.jms.JMSException;
@@ -31,6 +32,10 @@ import javax.jms.MessageListener;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.messaginghub.messy.jms.mock.MockJMSConnection;
+import org.messaginghub.messy.jms.mock.MockJMSConnectionListener;
+import org.messaginghub.messy.jms.mock.MockJMSMessageConsumer;
+import org.messaginghub.messy.jms.mock.MockJMSSession;
 
 /**
  *
@@ -187,5 +192,24 @@ public class JmsPoolJMSConsumerTest extends JmsPoolTestSupport {
             consumer.receiveBody(String.class, 1);
             fail("Should not be able to interact with closed consumer");
         } catch (JMSRuntimeException ise) {}
+    }
+
+    @Test
+    public void testJMSExOnConsumerCloseConvertedToJMSREx() throws JMSException {
+        JMSConsumer consumer = context.createConsumer(context.createTemporaryQueue());
+
+        MockJMSConnection connection = (MockJMSConnection) context.getConnection();
+        connection.addConnectionListener(new MockJMSConnectionListener() {
+
+            @Override
+            public void onCloseMessageConsumer(MockJMSSession session, MockJMSMessageConsumer consumer) throws JMSException {
+                throw new IllegalStateException("Some failure");
+            }
+        });
+
+        try {
+            consumer.close();
+            fail("Should throw on wrapped consumer throw");
+        } catch (IllegalStateRuntimeException isre) {}
     }
 }

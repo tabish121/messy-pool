@@ -450,54 +450,6 @@ public class JmsPoolSession implements Session, TopicSession, QueueSession, XASe
         return safeGetSessionHolder().getSession();
     }
 
-    MessageProducer getMessageProducer() throws JMSException {
-        return getMessageProducer(null);
-    }
-
-    MessageProducer getMessageProducer(Destination destination) throws JMSException {
-        MessageProducer result = null;
-
-        if (useAnonymousProducers) {
-            result = safeGetSessionHolder().getOrCreateProducer();
-        } else {
-            result = getInternalSession().createProducer(destination);
-        }
-
-        return result;
-    }
-
-    QueueSender getQueueSender() throws JMSException {
-        return getQueueSender(null);
-    }
-
-    QueueSender getQueueSender(Queue destination) throws JMSException {
-        QueueSender result = null;
-
-        if (useAnonymousProducers) {
-            result = safeGetSessionHolder().getOrCreateSender();
-        } else {
-            result = ((QueueSession) getInternalSession()).createSender(destination);
-        }
-
-        return result;
-    }
-
-    TopicPublisher getTopicPublisher() throws JMSException {
-        return getTopicPublisher(null);
-    }
-
-    TopicPublisher getTopicPublisher(Topic destination) throws JMSException {
-        TopicPublisher result = null;
-
-        if (useAnonymousProducers) {
-            result = safeGetSessionHolder().getOrCreatePublisher();
-        } else {
-            result = ((TopicSession) getInternalSession()).createPublisher(destination);
-        }
-
-        return result;
-    }
-
     public void setIsXa(boolean isXa) {
         this.isXa = isXa;
     }
@@ -574,6 +526,42 @@ public class JmsPoolSession implements Session, TopicSession, QueueSession, XASe
         if (closed.get()) {
             throw new IllegalStateException("Session is closed");
         }
+    }
+
+    private MessageProducer getMessageProducer(Destination destination) throws JMSException {
+        MessageProducer result = null;
+
+        if (useAnonymousProducers) {
+            result = safeGetSessionHolder().getOrCreateProducer();
+        } else {
+            result = getInternalSession().createProducer(destination);
+        }
+
+        return result;
+    }
+
+    private QueueSender getQueueSender(Queue destination) throws JMSException {
+        QueueSender result = null;
+
+        if (useAnonymousProducers) {
+            result = safeGetSessionHolder().getOrCreateSender();
+        } else {
+            result = ((QueueSession) getInternalSession()).createSender(destination);
+        }
+
+        return result;
+    }
+
+    private TopicPublisher getTopicPublisher(Topic destination) throws JMSException {
+        TopicPublisher result = null;
+
+        if (useAnonymousProducers) {
+            result = safeGetSessionHolder().getOrCreatePublisher();
+        } else {
+            result = ((TopicSession) getInternalSession()).createPublisher(destination);
+        }
+
+        return result;
     }
 
     private QueueBrowser addQueueBrowser(QueueBrowser browser) {
