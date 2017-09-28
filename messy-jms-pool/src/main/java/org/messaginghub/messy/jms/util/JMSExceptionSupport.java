@@ -48,8 +48,6 @@ import javax.jms.TransactionRolledBackRuntimeException;
  */
 public final class JMSExceptionSupport {
 
-    private JMSExceptionSupport() {}
-
     /**
      * Creates or passes through a JMSException to be thrown to the client.
      *

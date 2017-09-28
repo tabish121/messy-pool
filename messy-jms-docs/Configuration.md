@@ -4,9 +4,11 @@ This file details various configuration options for the JMS Pool, such as how to
 
 ## Creating a Pooling ConnectionFactory
 
-The JMS Pool operates as a standard JMS ConnectionFactory instance that wraps the ConnectionFactory of your chosen JMS Provider and manages the lifetime of Connections from that provider based on the configuration of the JMS Pool.
+The JMS Pool operates as a standard JMS ConnectionFactory instance that wraps the ConnectionFactory of your chosen JMS Provider and manages the lifetime of Connections from that provider based on the configuration of the JMS Pool.  The JMS Pool can be configured to share a single JMS Connection or a number of Connections amongst callers to the Pool's createConnection methods.
 
 ## Configuration Options
+
+The JMS Pool's ConnectionFactory implementation exposes a number of configuration options that control the behavior of the pool and the JMS resources it manages.  There are settings that control how many Connections are created in the pool and how long those Connections can remain idle etc.  There are also settings that control how many Sessions a loaned Connection from the pool is allowed to create and how the pooled Connection behaves when it cannot create any new Sessions for a given lonaed Connection.
 
 ### Connection Related Options
 
