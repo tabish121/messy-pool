@@ -44,9 +44,9 @@ import org.slf4j.LoggerFactory;
  * A pooled connection factory that automatically enlists sessions in the
  * current active XA transaction if any.
  */
-public class JmsPoolXaConnectionFactory extends JmsPoolConnectionFactory implements ObjectFactory, Serializable {
+public class JmsPoolXAConnectionFactory extends JmsPoolConnectionFactory implements ObjectFactory, Serializable {
 
-    private static final transient Logger LOG = LoggerFactory.getLogger(JmsPoolXaConnectionFactory.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(JmsPoolXAConnectionFactory.class);
     private static final long serialVersionUID = 7753681333583183646L;
 
     private TransactionManager transactionManager;

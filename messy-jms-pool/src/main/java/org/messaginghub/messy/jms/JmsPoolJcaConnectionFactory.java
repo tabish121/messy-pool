@@ -20,7 +20,7 @@ import javax.jms.Connection;
 
 import org.messaginghub.messy.jms.pool.PooledJCAConnection;
 
-public class JmsPoolJcaConnectionFactory extends JmsPoolXaConnectionFactory {
+public class JmsPoolJcaConnectionFactory extends JmsPoolXAConnectionFactory {
 
     private static final long serialVersionUID = -2470093537159318333L;
 
