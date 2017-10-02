@@ -62,7 +62,7 @@ public class XAConnectionPoolTest extends ActiveMQJmsPoolTestSupport {
     public void testAfterCompletionCanClose() throws Exception {
         final Vector<Synchronization> syncs = new Vector<Synchronization>();
         ActiveMQTopic topic = new ActiveMQTopic("test");
-        JmsPoolXaConnectionFactory pcf = new JmsPoolXaConnectionFactory();
+        JmsPoolXAConnectionFactory pcf = new JmsPoolXAConnectionFactory();
         pcf.setConnectionFactory(new XAConnectionFactoryOnly(new ActiveMQXAConnectionFactory("vm://test?broker.persistent=false")));
         // simple TM that is in a tx and will track syncs
         pcf.setTransactionManager(new TransactionManager(){
@@ -165,7 +165,7 @@ public class XAConnectionPoolTest extends ActiveMQJmsPoolTestSupport {
     public void testAckModeOfPoolNonXAWithTM() throws Exception {
         final Vector<Synchronization> syncs = new Vector<Synchronization>();
         ActiveMQTopic topic = new ActiveMQTopic("test");
-        JmsPoolXaConnectionFactory pcf = new JmsPoolXaConnectionFactory();
+        JmsPoolXAConnectionFactory pcf = new JmsPoolXAConnectionFactory();
         pcf.setConnectionFactory(new XAConnectionFactoryOnly(new ActiveMQXAConnectionFactory(
             "vm://test?broker.persistent=false&broker.useJmx=false&jms.xaAckMode=" + Session.CLIENT_ACKNOWLEDGE)));
 
@@ -264,7 +264,7 @@ public class XAConnectionPoolTest extends ActiveMQJmsPoolTestSupport {
 
     @Test(timeout = 60000)
     public void testInstanceOf() throws  Exception {
-        JmsPoolXaConnectionFactory pcf = new JmsPoolXaConnectionFactory();
+        JmsPoolXAConnectionFactory pcf = new JmsPoolXAConnectionFactory();
         assertTrue(pcf instanceof QueueConnectionFactory);
         assertTrue(pcf instanceof TopicConnectionFactory);
         pcf.stop();
@@ -272,27 +272,27 @@ public class XAConnectionPoolTest extends ActiveMQJmsPoolTestSupport {
 
     @Test(timeout = 60000)
     public void testBindable() throws Exception {
-        JmsPoolXaConnectionFactory pcf = new JmsPoolXaConnectionFactory();
+        JmsPoolXAConnectionFactory pcf = new JmsPoolXAConnectionFactory();
         assertTrue(pcf instanceof ObjectFactory);
-        assertTrue(((ObjectFactory)pcf).getObjectInstance(null, null, null, null) instanceof JmsPoolXaConnectionFactory);
+        assertTrue(((ObjectFactory)pcf).getObjectInstance(null, null, null, null) instanceof JmsPoolXAConnectionFactory);
         assertTrue(pcf.isTmFromJndi());
         pcf.stop();
     }
 
     @Test(timeout = 60000)
     public void testBindableEnvOverrides() throws Exception {
-        JmsPoolXaConnectionFactory pcf = new JmsPoolXaConnectionFactory();
+        JmsPoolXAConnectionFactory pcf = new JmsPoolXAConnectionFactory();
         assertTrue(pcf instanceof ObjectFactory);
         Hashtable<String, String> environment = new Hashtable<String, String>();
         environment.put("tmFromJndi", String.valueOf(Boolean.FALSE));
-        assertTrue(((ObjectFactory) pcf).getObjectInstance(null, null, null, environment) instanceof JmsPoolXaConnectionFactory);
+        assertTrue(((ObjectFactory) pcf).getObjectInstance(null, null, null, environment) instanceof JmsPoolXAConnectionFactory);
         assertFalse(pcf.isTmFromJndi());
         pcf.stop();
     }
 
     @Test(timeout = 60000)
     public void testSenderAndPublisherDest() throws Exception {
-        JmsPoolXaConnectionFactory pcf = new JmsPoolXaConnectionFactory();
+        JmsPoolXAConnectionFactory pcf = new JmsPoolXAConnectionFactory();
         pcf.setConnectionFactory(new ActiveMQXAConnectionFactory(
             "vm://test?broker.persistent=false&broker.useJmx=false"));
 
@@ -314,7 +314,7 @@ public class XAConnectionPoolTest extends ActiveMQJmsPoolTestSupport {
 
     @Test(timeout = 60000)
     public void testSessionArgsIgnoredWithTm() throws Exception {
-        JmsPoolXaConnectionFactory pcf = new JmsPoolXaConnectionFactory();
+        JmsPoolXAConnectionFactory pcf = new JmsPoolXAConnectionFactory();
         pcf.setConnectionFactory(new ActiveMQXAConnectionFactory(
             "vm://test?broker.persistent=false&broker.useJmx=false"));
 
