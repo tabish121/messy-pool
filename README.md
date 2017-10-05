@@ -1,2 +1,3 @@
-# messy-pool
+# PooledJMS
+
 JMS Connection pool for messaging applications

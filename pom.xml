@@ -20,14 +20,14 @@
 
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.messaginghub.jms</groupId>
-  <artifactId>messy-pool-parent</artifactId>
+  <artifactId>pooled-jms-parent</artifactId>
   <version>0.1.0-SNAPSHOT</version>
   <packaging>pom</packaging>
   <inceptionYear>2017</inceptionYear>
 
   <name>JMS Connection Pool</name>
   <description>Generic JMS Connection pool</description>
-  <url>https://github.com/messaginghub/messy-pool</url>
+  <url>https://github.com/messaginghub/pooled-jms</url>
 
   <licenses>
     <license>
@@ -37,9 +37,9 @@
   </licenses>
 
   <scm>
-    <url>https://github.com/messaginghub/messy-pool.git</url>
-    <connection>scm:git:git://github.com/messaginghub/messy-pool.git</connection>
-    <developerConnection>scm:git:git@github.com:messaginghub/messy-pool.git</developerConnection>
+    <url>https://github.com/messaginghub/pooled-jms.git</url>
+    <connection>scm:git:git://github.com/messaginghub/pooled-jms.git</connection>
+    <developerConnection>scm:git:git@github.com:messaginghub/pooled-jms.git</developerConnection>
     <tag>HEAD</tag>
   </scm>
 
@@ -91,10 +91,10 @@
   </properties>
 
   <modules>
-    <module>messy-jms-pool</module>
-    <module>messy-jms-interop-tests</module>
-    <module>messy-jms-docs</module>
-    <module>messy-jms-examples</module>
+    <module>pooled-jms-pool</module>
+    <module>pooled-jms-interop-tests</module>
+    <module>pooled-jms-docs</module>
+    <module>pooled-jms-examples</module>
   </modules>
 
   <distributionManagement>
@@ -112,7 +112,7 @@
     <dependencies>
       <dependency>
         <groupId>org.messaginghub.jms</groupId>
-        <artifactId>messy-jms-pool</artifactId>
+        <artifactId>pooled-jms-pool</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
